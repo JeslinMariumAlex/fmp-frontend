@@ -13,7 +13,8 @@
   // =======================
   // BACKEND CONFIG + API LAYER
   // =======================
-  const API_BASE = "http://localhost:5000/api";             // change to deployed URL later
+  const API_BASE = "https://fmp-backend-wrdc.onrender.com/api";
+             
   const PLUGINS_URL = `${API_BASE}/plugins`;
 
   // Unified fetch that matches ApiResponse { success, data, meta? }
