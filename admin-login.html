@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow">
   <title>Admin Login • Find My Plugin</title>
 
   <!-- Site fonts + global styles (same as other pages) -->
@@ -104,7 +105,7 @@
     const isLocal = ["localhost","127.0.0.1","::1"].includes(location.hostname);
     const API = isLocal
       ? `http://${location.hostname}:5000/api`
-      : 'https://<YOUR-RENDER-BACKEND>.onrender.com/api'; // set your Render URL for deploy
+      : 'https://fmp-backend-wrdc.onrender.com/api';//Render URL for deploy
 
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
