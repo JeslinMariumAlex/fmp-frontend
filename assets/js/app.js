@@ -109,6 +109,8 @@
       return Store.update(id, next);
     },
   };
+  window.Store = Store; // make Store usable from inline scripts
+  window.showToast = showToast; // (optional) so toasts work from inline scripts
 
   // =======================
   // UTILITIES
@@ -966,7 +968,7 @@
     // Close edit modal
     $("#closeEditPlugin")?.addEventListener("click", () => {
       $("#editPluginModal").setAttribute("aria-hidden", "true");
-      document.body.classList.remove("modal-open"); 
+      document.body.classList.remove("modal-open");
       window.CURRENT_EDIT_ID = null;
     });
 

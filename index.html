@@ -1,25 +1,29 @@
 <!doctype html>
 <html lang="en">
+
 <head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width,initial-scale=1" />
 	<title>Find My Plugin - Home</title>
 	<link rel="stylesheet" href="assets/css/style.css">
 </head>
+
 <body>
 	<header class="site-header container">
 		<div class="nav-wrapper ">
-			<a href="index.html" class="brand">Find My Plugin</a>			
+			<a href="index.html" class="brand">Find My Plugin</a>
 			<nav>
 				<ul class="nav-list" id="mainNav">
 					<li class="nav-item">
-						<a href="#" class="nav-link">Products <svg width="12" height="12" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4" stroke="currentColor" fill="none"></path></svg></a>
+						<a href="#" class="nav-link">Products <svg width="12" height="12" viewBox="0 0 16 16">
+								<path d="M4 6l4 4 4-4" stroke="currentColor" fill="none"></path>
+							</svg></a>
 						<div class="megamenu">
 							<div class="megamenu-grid">
 								<div class="menu-section">
 									<h4>Chrome Extentions</h4>
 									<ul class="menu-list">
-										<li class="menu-item">
+										<li class="menu-item" data-title="Amazing YouTube Helper" >
 											<span class="icon">📱</span>
 											<div>
 												<div class="menu-item-title">Amazing YouTube Helper</div>
@@ -32,21 +36,23 @@
 								<div class="menu-section">
 									<h4>WordPress Plugins</h4>
 									<ul class="menu-list">
-										<li class="menu-item">
+										<li class="menu-item" data-title="WordPress SEO Optimizer">
 											<span class="icon">🌐</span>
 											<div>
-												<div class="menu-item-title">SEO Booster</div>
+												<div class="menu-item-title">WordPress SEO Optimizer</div>
 												<div class="menu-item-desc">Improve your site ranking</div>
 											</div>
 										</li>
 										<!-- Add more categories -->
 									</ul>
-								<!-- Add more sections -->
+									<!-- Add more sections -->
+								</div>
 							</div>
-						</div>
 					</li>
 					<li class="nav-item">
-						<a href="#" class="nav-link">Resources <svg width="12" height="12" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4" stroke="currentColor" fill="none"></path></svg></a>
+						<a href="#" class="nav-link">Resources <svg width="12" height="12" viewBox="0 0 16 16">
+								<path d="M4 6l4 4 4-4" stroke="currentColor" fill="none"></path>
+							</svg></a>
 						<!-- Add Resources megamenu -->
 					</li>
 					<li class="nav-item"><a href="listing.html" class="nav-link">Browse</a></li>
@@ -55,7 +61,7 @@
 			</nav>
 			<button class="mobile-menu-btn" id="mobileMenuBtn">
 				<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-					<path d="M3 12h18M3 6h18M3 18h18"/>
+					<path d="M3 12h18M3 6h18M3 18h18" />
 				</svg>
 			</button>
 		</div>
@@ -63,7 +69,8 @@
 
 	<main class="container">
 		<!-- Hero section with image background -->
-		<section class="hero hero-banner" style="background: url('assets/images/banner.jpg') center/cover no-repeat; border-radius: 18px; min-height: 340px; display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 32px; position: relative;">
+		<section class="hero hero-banner"
+			style="background: url('assets/images/banner.jpg') center/cover no-repeat; border-radius: 18px; min-height: 340px; display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 32px; position: relative;">
 			<div>
 				<!-- <h1 style="font-size:2.4rem; font-weight:700; margin-bottom:18px; color:#111;">Discover plugins, extensions and integrations</h1>
 				<p style="font-size:1.15rem; color:#444; margin-bottom:28px;">Pellentesque egestas, neque sit amet convallis pulvinar, justo nulla eleifend augue, ac auctor orci leo non est. Aliquam eu nunc. Quisque ut nisi. 
@@ -86,7 +93,8 @@
 				<a href="request-for-plugin.html" class="btn">Request for plugin</a>
 				<a href="listing.html" class="btn ghost">Browse Templates</a>
 				<!-- Mobile filter button -->
-				<button id="openFilterSidebar" class="btn ghost mobile-only" type="button" style="margin-left:8px;">Filters</button>
+				<button id="openFilterSidebar" class="btn ghost mobile-only" type="button"
+					style="margin-left:8px;">Filters</button>
 			</div>
 		</section>
 
@@ -188,27 +196,79 @@
 
 	<script src="assets/js/app.js"></script>
 	<script>
-	document.getElementById('mobileMenuBtn').addEventListener('click', function() {
-	    document.getElementById('mainNav').classList.toggle('active');
-	});
+		document.getElementById('mobileMenuBtn').addEventListener('click', function () {
+			document.getElementById('mainNav').classList.toggle('active');
+		});
 
-	// Mobile megamenu toggle for nav-items with megamenu
-	document.querySelectorAll('.nav-item').forEach(function(item) {
-	    var link = item.querySelector('.nav-link');
-	    var megamenu = item.querySelector('.megamenu');
-	    if (link && megamenu) {
-	        link.addEventListener('click', function(e) {
-	            if (window.innerWidth <= 900) {
-	                e.preventDefault();
-	                // Close other open megamenus
-	                document.querySelectorAll('.nav-item.open').forEach(function(openItem) {
-	                    if (openItem !== item) openItem.classList.remove('open');
-	                });
-	                item.classList.toggle('open');
-	            }
-	        });
-	    }
-	});
+		// Mobile megamenu toggle for nav-items with megamenu
+		document.querySelectorAll('.nav-item').forEach(function (item) {
+			var link = item.querySelector('.nav-link');
+			var megamenu = item.querySelector('.megamenu');
+			if (link && megamenu) {
+				link.addEventListener('click', function (e) {
+					if (window.innerWidth <= 900) {
+						e.preventDefault();
+						// Close other open megamenus
+						document.querySelectorAll('.nav-item.open').forEach(function (openItem) {
+							if (openItem !== item) openItem.classList.remove('open');
+						});
+						item.classList.toggle('open');
+					}
+				});
+			}
+		});
+
 	</script>
+
+	<script>
+// === Products mega-menu: open detail page dynamically (no hardcoded IDs) ===
+
+// Build a title -> id map once (lazy)
+let __titleToId = null;
+async function ensureTitleMap() {
+  if (__titleToId) return __titleToId;
+  const items = await window.Store.list(); // [{_id,title,...}]
+  __titleToId = new Map(
+    (items || []).map(p => [(p.title || '').trim().toLowerCase(), (p._id || p.id)])
+  );
+  return __titleToId;
+}
+
+// Delegate clicks to rows in the mega-menu
+document.addEventListener('click', async (e) => {
+  const row = e.target.closest('.megamenu .menu-item[data-title]');
+  if (!row) return;
+
+  e.preventDefault();
+
+  const title = (row.dataset.title || row.querySelector('.menu-item-title')?.textContent || '')
+                .trim().toLowerCase();
+  if (!title) return;
+
+  try {
+    const map = await ensureTitleMap();
+    const id = map.get(title);
+
+    if (id) {
+      location.href = `detail.html?id=${id}`;
+    } else {
+      // Fallback: live search, then update the cache
+      const results = await window.Store.list({ q: title });
+      const match = (results || []).find(p => (p.title || '').trim().toLowerCase() === title);
+      if (match) {
+        const mid = match._id || match.id;
+        __titleToId.set(title, mid);
+        location.href = `detail.html?id=${mid}`;
+      } else {
+        window.showToast?.('Plugin not found', 'warning');
+      }
+    }
+  } catch (err) {
+    window.showToast?.('Open failed: ' + err.message, 'error');
+  }
+});
+</script>
+
 </body>
+
 </html>
