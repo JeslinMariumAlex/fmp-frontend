@@ -1,3 +1,4 @@
+// app.js
 (function () {
   // =======================
   // TOAST SYSTEM (top-right, auto-styled)
@@ -134,6 +135,16 @@
   const params = new URLSearchParams(location.search);
   const fmt = (x) => (x ?? "").toString();
   const getId = (p) => p._id || p.id;
+  // simple HTML-escape helper to prevent XSS when inserting user-provided text
+  function escapeHtml(str) {
+    if (str === undefined || str === null) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
 
   // =======================
   // ✨ Custom Confirm Modal (replaces window.confirm)
@@ -1023,35 +1034,274 @@
       }
     });
 
-    // Requests + Comments moderation still use LS (unchanged)
-    function renderRequests() {
-      const r = load(LS.requests, []);
-      const wrap = $("#adminRequests");
+    // =======================
+    // BACKEND-FIRST REQUESTS (REPLACES OLD LOCALSTORAGE VERSION)(styled to match admin cards)
+    // =======================
+    async function renderRequests() {
+      const wrap = document.getElementById("adminRequests");
       if (!wrap) return;
+      wrap.innerHTML = `<p class="muted">Loading requests...</p>`;
+
+      const endpoints = [
+        `${API_BASE}/requests`, // public fallback
+      ];
+
+      let items = null;
+      for (const url of endpoints) {
+        try {
+          const res = await fetch(url, { credentials: "include" });
+          // If unauthorized, skip to next
+          if (res.status === 401 || res.status === 403) continue;
+          if (!res.ok) continue;
+          const text = await res.text().catch(() => null);
+          if (!text) continue;
+          let json;
+          try {
+            json = JSON.parse(text);
+          } catch (e) {
+            json = null;
+          }
+          if (Array.isArray(json)) items = json;
+          else if (Array.isArray(json.data)) items = json.data;
+          else if (Array.isArray(json.requests)) items = json.requests;
+          else if (json && json.id) items = [json];
+          if (items) break;
+        } catch (err) {
+          console.warn("requests fetch attempt failed", err);
+        }
+      }
+
+      // Fallback to localStorage if backend didn't return items
+      if (!items) items = load(LS.requests, []);
+
       wrap.innerHTML = "";
-      if (!r.length) wrap.innerHTML = "<p>No requests</p>";
-      r.forEach((req) => {
-        const div = document.createElement("div");
-        div.className = "card";
-        div.innerHTML = `<strong>${req.name}</strong><p>${
-          req.text
-        }</p><div class="muted">${req.email} • ${new Date(
-          req.created
-        ).toLocaleString()}</div>
-          <button data-rid="${req.id}" class="small">Delete</button>`;
-        wrap.appendChild(div);
+      if (!items.length) {
+        wrap.innerHTML = "<p>No requests</p>";
+        return;
+      }
+
+      items.forEach((req) => {
+        const id =
+          req.id ||
+          req._id ||
+          req.request_id ||
+          "ls_" + Math.random().toString(36).slice(2, 9);
+        const name = req.name || (req.user && req.user.name) || "User";
+        const text = req.text || req.message || "(no message)";
+        const email = req.email || (req.user && req.user.email) || "";
+        const created =
+          req.createdAt || req.created_at || req.created || Date.now();
+        const status = req.status || "new";
+        const fileUrl = req.fileUrl || req.file || "";
+
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+        <div style="flex:1;">
+          <strong>${escapeHtml(name)}</strong>
+          <p>${escapeHtml(text)}</p>
+          <div class="muted" style="margin-top:6px;">
+            ${escapeHtml(email)} • ${new Date(created).toLocaleString()}
+            <span style="display:inline-block;margin-left:8px;padding:4px 8px;border-radius:999px;background:#f3f4f6;color:#111;font-size:12px;">${escapeHtml(
+              status
+            )}</span>
+          </div>
+          ${
+            fileUrl
+              ? `<div style="margin-top:8px;"><a href="${escapeHtml(
+                  fileUrl
+                )}" target="_blank" rel="noopener" class="muted">Attachment</a></div>`
+              : ""
+          }
+        </div>
+
+        <div style="min-width:140px;text-align:right;">
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
+            <button class="delPlugin small" data-id="${escapeHtml(
+              id
+            )}">Delete</button>
+            <a class="btn ghost small" href="#" data-id-view="${escapeHtml(
+              id
+            )}">View</a>
+          </div>
+        </div>
+      </div>
+    `;
+        wrap.appendChild(card);
       });
     }
+
+    // DELETE + VIEW handler (works with backend delete if available)
+    document
+      .getElementById("adminRequests")
+      ?.addEventListener("click", async (ev) => {
+        const delBtn = ev.target.closest("button.delPlugin");
+        const viewLink = ev.target.closest("a[data-id-view]");
+
+        if (viewLink) {
+          ev.preventDefault();
+          const id =
+            viewLink.dataset.idView || viewLink.getAttribute("data-id-view");
+
+          // open modal and show loading state
+          const viewModal = document.getElementById("viewRequestModal");
+          const viewContent = document.getElementById("viewRequestContent");
+          if (!viewModal || !viewContent) {
+            showToast("View modal not found", "error");
+            return;
+          }
+          viewContent.innerHTML = "<p class='muted'>Loading...</p>";
+          viewModal.setAttribute("aria-hidden", "false");
+          document.body.classList.add("modal-open");
+
+          // Try backend detail endpoints first (admin -> public)
+          let req = null;
+          const tryUrls = [`${API_BASE}/requests/${id}`];
+          for (const u of tryUrls) {
+            try {
+              const r = await fetch(u, { credentials: "include" });
+              if (!r.ok) continue;
+              const j = await r.json().catch(() => null);
+              // normalize: json.data, json.request or plain object
+              req = j?.data || j?.request || j;
+              if (req) break;
+            } catch (err) {
+              // ignore and continue
+            }
+          }
+
+          // fallback to localStorage requests
+          if (!req) {
+            const arr = load(LS.requests, []);
+            req = arr.find((x) => {
+              const cand = x.id || x._id || x.request_id || "";
+              return cand === id || String(x._id) === String(id);
+            });
+          }
+
+          if (!req) {
+            viewContent.innerHTML = '<p class="muted">Request not found.</p>';
+            showToast("Request not found", "error");
+            return;
+          }
+
+          // render content (escapeHtml used to avoid XSS)
+          const created = new Date(
+            req.createdAt || req.created || req.created_at || Date.now()
+          ).toLocaleString();
+          const attachmentHtml =
+            req.fileUrl || req.file || req.filename
+              ? `<p style="margin-top:8px;"><strong>Attachment:</strong>
+        <a href="${escapeHtml(
+          req.fileUrl || req.file || ""
+        )}" target="_blank" rel="noopener" class="btn ghost small">Open File</a></p>`
+              : "";
+
+          viewContent.innerHTML = `
+    <p><strong>Name:</strong> ${escapeHtml(
+      req.name || (req.user && req.user.name) || ""
+    )}</p>
+    <p><strong>Email:</strong> ${escapeHtml(
+      req.email || (req.user && req.user.email) || ""
+    )}</p>
+    <p><strong>Phone:</strong> ${escapeHtml(req.phone || "")}</p>
+    <p><strong>Requirement:</strong><br>${escapeHtml(
+      req.text || req.message || ""
+    )}</p>
+    <p><strong>Status:</strong> <span class="muted">${escapeHtml(
+      req.status || "new"
+    )}</span></p>
+    <p><strong>Created:</strong> ${created}</p>
+    ${attachmentHtml}
+  `;
+
+          // Make sure the modal-close buttons remove modal-open class as well
+          // (listeners for the close buttons are added below globally)
+          return;
+        }
+
+        if (!delBtn) return;
+
+        // use custom confirm modal instead of native confirm()
+        const ok = await confirmModal("Delete this request?", {
+          okText: "Delete",
+          cancelText: "Cancel",
+          variant: "danger",
+        });
+        if (!ok) return;
+
+        const id = delBtn.dataset.id;
+        // Try admin backend delete first
+        try {
+          // fallback to public delete
+          const pubDel = await fetch(`${API_BASE}/requests/${id}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+          if (pubDel.ok) {
+            showToast("Request deleted", "info");
+            return renderRequests();
+          }
+        } catch (e) {
+          console.warn("backend delete failed", e);
+        }
+
+        // Fallback to localStorage deletion
+        let arr = load(LS.requests, []);
+        arr = arr.filter((x) => (x.id || x._id || "") !== id);
+        save(LS.requests, arr);
+        showToast("Request deleted (local)", "info");
+        renderRequests();
+      });
+
+    // initial load
     renderRequests();
-    $("#adminRequests")?.addEventListener("click", function (ev) {
-      const btn = ev.target.closest("button[data-rid]");
-      if (!btn) return;
-      const id = btn.dataset.rid;
-      let r = load(LS.requests, []);
-      r = r.filter((x) => x.id !== id);
-      save(LS.requests, r);
-      renderRequests();
-      showToast("Request deleted", "info");
+
+    // Close buttons for the View Request modal
+    document
+      .getElementById("closeViewRequest")
+      ?.addEventListener("click", () => {
+        const m = document.getElementById("viewRequestModal");
+        if (!m) return;
+        m.setAttribute("aria-hidden", "true");
+        document.body.classList.remove("modal-open");
+      });
+
+    document
+      .getElementById("closeViewRequest2")
+      ?.addEventListener("click", () => {
+        const m = document.getElementById("viewRequestModal");
+        if (!m) return;
+        m.setAttribute("aria-hidden", "true");
+        document.body.classList.remove("modal-open");
+      });
+
+    // Allow clicking outside modal (backdrop) to close
+    document
+      .getElementById("viewRequestModal")
+      ?.addEventListener("mousedown", (ev) => {
+        const modal = document.getElementById("viewRequestModal");
+        const panel = modal.querySelector(".modal-panel");
+
+        if (ev.target === modal) {
+          modal.setAttribute("aria-hidden", "true");
+          document.body.classList.remove("modal-open");
+        }
+      });
+
+    // Close with ESC key
+    document.addEventListener("keydown", (ev) => {
+      const modal = document.getElementById("viewRequestModal");
+      if (!modal) return;
+
+      if (
+        ev.key === "Escape" &&
+        modal.getAttribute("aria-hidden") === "false"
+      ) {
+        modal.setAttribute("aria-hidden", "true");
+        document.body.classList.remove("modal-open");
+      }
     });
 
     function renderPendingComments() {

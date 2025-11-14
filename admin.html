@@ -1,202 +1,285 @@
-<!doctype html>
+<!-- admin.html -->
+<!DOCTYPE html>
 <html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Admin - Find My Plugin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/css/style.css" />
 
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="robots" content="noindex, nofollow">
-  <title>Admin - Find My Plugin</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/style.css">
+    <style>
+      /* Hide admin UI until we confirm auth (without changing layout) */
+      .admin-grid {
+        visibility: hidden;
+        opacity: 0;
+      }
 
-  <style>
-    /* Hide admin UI until we confirm auth (without changing layout) */
-    .admin-grid {
-      visibility: hidden;
-      opacity: 0;
-    }
+      body[data-auth="ok"] .admin-grid {
+        visibility: visible;
+        opacity: 1;
+        transition: opacity 0.3s ease;
+      }
 
-    body[data-auth="ok"] .admin-grid {
-      visibility: visible;
-      opacity: 1;
-      transition: opacity 0.3s ease;
-    }
+      /* ✅ MODAL FIX: prevent background overlap & lock scroll */
+      .modal {
+        z-index: 5000;
+      }
 
-    /* ✅ MODAL FIX: prevent background overlap & lock scroll */
-    .modal {
-      z-index: 5000;
-    }
+      .modal-panel {
+        z-index: 5001;
+      }
 
-    .modal-panel {
-      z-index: 5001;
-    }
+      body.modal-open {
+        overflow: hidden;
+      }
+    </style>
+  </head>
 
-    body.modal-open {
-      overflow: hidden;
-    }
-  </style>
-</head>
+  <body>
+    <header class="site-header container">
+      <div class="nav-wrapper">
+        <a href="index.html" class="brand">Find My Plugin</a>
+        <button
+          class="mobile-menu-btn"
+          id="mobileMenuBtn"
+          aria-label="Toggle menu"
+        >
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M3 12h18M3 6h18M3 18h18" />
+          </svg>
+        </button>
+        <nav>
+          <ul class="nav-list" id="mainNav">
+            <li class="nav-item">
+              <a href="listing.html" class="nav-link">Browse</a>
+            </li>
+            <li class="nav-item">
+              <a href="admin.html" class="nav-link">Admin</a>
+            </li>
+            <li class="nav-item">
+              <a href="contact.html" class="nav-link">Contact</a>
+            </li>
+            <li class="nav-item">
+              <a href="#" id="logoutBtn" class="nav-link">Logout</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
 
-<body>
-  <header class="site-header container">
-    <div class="nav-wrapper">
-      <a href="index.html" class="brand">Find My Plugin</a>
-      <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Toggle menu">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M3 12h18M3 6h18M3 18h18" />
-        </svg>
-      </button>
-      <nav>
-        <ul class="nav-list" id="mainNav">
-          <li class="nav-item"><a href="listing.html" class="nav-link">Browse</a></li>
-          <li class="nav-item"><a href="admin.html" class="nav-link">Admin</a></li>
-          <li class="nav-item"><a href="contact.html" class="nav-link">Contact</a></li>
-          <li class="nav-item"><a href="#" id="logoutBtn" class="nav-link">Logout</a></li>
-        </ul>
-      </nav>
+    <main class="container admin-grid">
+      <aside class="admin-side">
+        <h3>Manage</h3>
+        <button id="loadDefaults" class="btn">Load Sample Data</button>
+        <div>
+          <h4>Categories</h4>
+          <ul id="adminCats"></ul>
+          <input id="newCat" placeholder="New category" />
+          <button id="addCat" class="btn small">Add</button>
+
+          <div style="margin-top: 18px">
+            <label for="catSelectForSub">Add Subcategory</label>
+            <select id="catSelectForSub"></select>
+            <input id="newSubcat" placeholder="New subcategory" />
+            <button id="addSubcat" class="btn small">Add Subcategory</button>
+          </div>
+        </div>
+      </aside>
+
+      <section class="admin-main">
+        <h2>Add Plugin</h2>
+        <form id="addPluginForm" class="form">
+          <input id="pTitle" placeholder="Title" required />
+          <textarea
+            id="pDesc"
+            placeholder="Short description"
+            required
+          ></textarea>
+          <label>Detailed Description (HTML allowed)</label>
+          <div
+            id="descEditor"
+            contenteditable="true"
+            style="
+              min-height: 120px;
+              border: 1px solid #ddd;
+              border-radius: 6px;
+              padding: 10px;
+              margin-bottom: 12px;
+              background: #fff;
+            "
+          ></div>
+          <input id="pTags" placeholder="Tags (comma separated)" />
+          <select id="pCategory"></select>
+          <select id="pSubcategory"></select>
+          <label>Screenshots</label>
+          <input id="pScreens" type="file" multiple accept="image/*" />
+          <label>YouTube Video URL (optional)</label>
+          <input id="pVideo" placeholder="https://youtube.com/..." />
+          <label>Application Link (optional)</label>
+          <input
+            id="pAppLink"
+            placeholder="https://example.com/app-or-download"
+          />
+          <button type="submit" class="btn">Add Plugin</button>
+        </form>
+
+        <!-- ✅ Edit modal -->
+        <div id="editPluginModal" class="modal" aria-hidden="true">
+          <div class="modal-panel">
+            <button class="close" id="closeEditPlugin" aria-label="Close">
+              &times;
+            </button>
+            <h3>Edit Plugin</h3>
+            <form id="editPluginForm">
+              <input id="editTitle" placeholder="Title" required />
+              <textarea
+                id="editDesc"
+                placeholder="Short description"
+                required
+              ></textarea>
+              <label>Detailed Description (HTML allowed)</label>
+              <div
+                id="editDescEditor"
+                contenteditable="true"
+                style="
+                  min-height: 120px;
+                  border: 1px solid #ddd;
+                  border-radius: 6px;
+                  padding: 10px;
+                  margin-bottom: 12px;
+                  background: #fff;
+                "
+              ></div>
+              <input id="editTags" placeholder="Tags (comma separated)" />
+              <select id="editCategory"></select>
+              <select id="editSubcategory"></select>
+              <label>Screenshots</label>
+              <input id="editScreens" type="file" multiple accept="image/*" />
+              <label
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 6px;
+                  margin: 6px 0;
+                "
+              >
+                <input type="checkbox" id="editReplaceShots" />
+                Replace existing screenshots (instead of appending)
+              </label>
+              <label>YouTube Video URL (optional)</label>
+              <input id="editVideo" placeholder="https://youtube.com/..." />
+              <label>Application Link (optional)</label>
+              <input
+                id="editAppLink"
+                placeholder="https://example.com/app-or-download"
+              />
+              <button type="submit" class="btn">Save Changes</button>
+            </form>
+          </div>
+        </div>
+
+        <h3>Plugins</h3>
+        <div id="adminPlugins"></div>
+
+        <h3>Requests</h3>
+        <div id="adminRequests"></div>
+
+        <h3>Pending Comments</h3>
+        <div id="adminComments"></div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container"></div>
+    </footer>
+
+    <script>
+      const isLocal = ["localhost", "127.0.0.1", "::1"].includes(
+        location.hostname
+      );
+      const API = isLocal
+        ? `http://${location.hostname}:5000/api`
+        : "https://fmp-backend-wrdc.onrender.com/api";
+
+      (async () => {
+        try {
+          const res = await fetch(`${API}/auth/me`, { credentials: "include" });
+          if (!res.ok) throw 0;
+          const me = await res.json();
+          if (me.role !== "admin") throw 0;
+          window.__FMP_ADMIN__ = { me, API };
+          document.body.setAttribute("data-auth", "ok");
+        } catch {
+          location.href = "admin-login.html";
+        }
+      })();
+    </script>
+    <!-- VIEW REQUEST MODAL -->
+    <div id="viewRequestModal" class="modal" aria-hidden="true">
+      <div class="modal-panel">
+        <button class="close" id="closeViewRequest" aria-label="Close">
+          &times;
+        </button>
+
+        <h3>Request Details</h3>
+
+        <div id="viewRequestContent" style="margin-top: 12px">Loading...</div>
+
+        <div style="margin-top: 16px; text-align: right">
+          <button class="btn ghost small" id="closeViewRequest2">Close</button>
+        </div>
+      </div>
     </div>
-  </header>
+    <script src="assets/js/app.js"></script>
 
-  <main class="container admin-grid">
-    <aside class="admin-side">
-      <h3>Manage</h3>
-      <button id="loadDefaults" class="btn">Load Sample Data</button>
-      <div>
-        <h4>Categories</h4>
-        <ul id="adminCats"></ul>
-        <input id="newCat" placeholder="New category" />
-        <button id="addCat" class="btn small">Add</button>
-
-        <div style="margin-top:18px;">
-          <label for="catSelectForSub">Add Subcategory</label>
-          <select id="catSelectForSub"></select>
-          <input id="newSubcat" placeholder="New subcategory" />
-          <button id="addSubcat" class="btn small">Add Subcategory</button>
-        </div>
-      </div>
-    </aside>
-
-    <section class="admin-main">
-      <h2>Add Plugin</h2>
-      <form id="addPluginForm" class="form">
-        <input id="pTitle" placeholder="Title" required />
-        <textarea id="pDesc" placeholder="Short description" required></textarea>
-        <label>Detailed Description (HTML allowed)</label>
-        <div id="descEditor" contenteditable="true"
-          style="min-height:120px;border:1px solid #ddd;border-radius:6px;padding:10px;margin-bottom:12px;background:#fff;">
-        </div>
-        <input id="pTags" placeholder="Tags (comma separated)" />
-        <select id="pCategory"></select>
-        <select id="pSubcategory"></select>
-        <label>Screenshots</label>
-        <input id="pScreens" type="file" multiple accept="image/*" />
-        <label>YouTube Video URL (optional)</label>
-        <input id="pVideo" placeholder="https://youtube.com/..." />
-        <label>Application Link (optional)</label>
-        <input id="pAppLink" placeholder="https://example.com/app-or-download" />
-        <button type="submit" class="btn">Add Plugin</button>
-      </form>
-
-      <!-- ✅ Edit modal -->
-      <div id="editPluginModal" class="modal" aria-hidden="true">
-        <div class="modal-panel">
-          <button class="close" id="closeEditPlugin" aria-label="Close">&times;</button>
-          <h3>Edit Plugin</h3>
-          <form id="editPluginForm">
-            <input id="editTitle" placeholder="Title" required />
-            <textarea id="editDesc" placeholder="Short description" required></textarea>
-            <label>Detailed Description (HTML allowed)</label>
-            <div id="editDescEditor" contenteditable="true"
-              style="min-height:120px;border:1px solid #ddd;border-radius:6px;padding:10px;margin-bottom:12px;background:#fff;">
-            </div>
-            <input id="editTags" placeholder="Tags (comma separated)" />
-            <select id="editCategory"></select>
-            <select id="editSubcategory"></select>
-            <label>Screenshots</label>
-            <input id="editScreens" type="file" multiple accept="image/*" />
-            <label style="display:flex;align-items:center;gap:6px;margin:6px 0;">
-              <input type="checkbox" id="editReplaceShots" />
-              Replace existing screenshots (instead of appending)
-            </label>
-            <label>YouTube Video URL (optional)</label>
-            <input id="editVideo" placeholder="https://youtube.com/..." />
-            <label>Application Link (optional)</label>
-            <input id="editAppLink" placeholder="https://example.com/app-or-download" />
-            <button type="submit" class="btn">Save Changes</button>
-          </form>
-        </div>
-      </div>
-
-      <h3>Plugins</h3>
-      <div id="adminPlugins"></div>
-
-      <h3>Requests</h3>
-      <div id="adminRequests"></div>
-
-      <h3>Pending Comments</h3>
-      <div id="adminComments"></div>
-    </section>
-  </main>
-
-  <footer class="site-footer">
-    <div class="container"></div>
-  </footer>
-
-  <script>
-    const isLocal = ["localhost", "127.0.0.1", "::1"].includes(location.hostname);
-    const API = isLocal
-      ? `http://${location.hostname}:5000/api`
-      : 'https://fmp-backend-wrdc.onrender.com/api';
-
-    (async () => {
-      try {
-        const res = await fetch(`${API}/auth/me`, { credentials: "include" });
-        if (!res.ok) throw 0;
-        const me = await res.json();
-        if (me.role !== "admin") throw 0;
-        window.__FMP_ADMIN__ = { me, API };
-        document.body.setAttribute("data-auth", "ok");
-      } catch {
-        location.href = "admin-login.html";
-      }
-    })();
-  </script>
-
-  <script src="assets/js/app.js"></script>
-
-  <script>
-    document.getElementById('logoutBtn')?.addEventListener('click', async (e) => {
-      e.preventDefault();
-      try {
-        await fetch(`${(window.__FMP_ADMIN__?.API) || API}/auth/logout`, {
-          method: 'POST', credentials: 'include'
+    <script>
+      document
+        .getElementById("logoutBtn")
+        ?.addEventListener("click", async (e) => {
+          e.preventDefault();
+          try {
+            await fetch(`${window.__FMP_ADMIN__?.API || API}/auth/logout`, {
+              method: "POST",
+              credentials: "include",
+            });
+          } finally {
+            location.href = "admin-login.html";
+          }
         });
-      } finally {
-        location.href = 'admin-login.html';
-      }
-    });
 
-    document.getElementById('mobileMenuBtn').addEventListener('click', function () {
-      document.getElementById('mainNav').classList.toggle('active');
-    });
-  </script>
-
-  <script>
-    window.addEventListener("beforeunload", async () => {
-      try {
-        await fetch(`${(window.__FMP_ADMIN__?.API) || API}/auth/logout`, {
-          method: "POST",
-          credentials: "include",
-          keepalive: true
+      document
+        .getElementById("mobileMenuBtn")
+        .addEventListener("click", function () {
+          document.getElementById("mainNav").classList.toggle("active");
         });
-      } catch (err) {
-        console.warn("Auto logout failed (ignored)", err);
-      }
-    });
-  </script>
+    </script>
 
-</body>
-
+    <script>
+      window.addEventListener("beforeunload", async () => {
+        try {
+          await fetch(`${window.__FMP_ADMIN__?.API || API}/auth/logout`, {
+            method: "POST",
+            credentials: "include",
+            keepalive: true,
+          });
+        } catch (err) {
+          console.warn("Auto logout failed (ignored)", err);
+        }
+      });
+    </script>
+  </body>
 </html>
