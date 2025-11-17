@@ -39,12 +39,12 @@
   }
 
   // =======================
-  // LOCAL STORAGE KEYS (keep for categories/requests/contacts)
-  // comments moved to backend
+  // LOCAL STORAGE KEYS (keep for requests/contacts)
+  // comments moved to backend, categories now backend too
   // =======================
   const LS = {
     plugins: "fm_plugins",
-    categories: "fm_cats",
+    categories: "fm_cats", // not used anymore for categories
     requests: "fm_requests",
     contacts: "fm_contacts",
     // comments: "fm_comments" (no longer used for site comments)
@@ -78,7 +78,7 @@
     return json;
   }
 
-  // Backend store for plugins (unchanged)
+  // Backend store for plugins
   const Store = {
     async list({ q, cat, sub, tags, minRating } = {}) {
       const url = new URL(PLUGINS_URL);
@@ -117,10 +117,31 @@
   window.showToast = showToast;
 
   // =======================
+  // CATEGORY STORE (backend)
+  // =======================
+  const CATEGORIES_URL = `${API_BASE}/categories`;
+
+  const CategoryStore = {
+    async list() {
+      const resp = await api("GET", CATEGORIES_URL);
+      return resp.data ?? resp;
+    },
+    async create(payload) {
+      // payload example: { name: "Chrome extensions", subs: ["Youtube"] }
+      return api("POST", CATEGORIES_URL, payload);
+    },
+    async update(id, payload) {
+      return api("PATCH", `${CATEGORIES_URL}/${id}`, payload);
+    },
+    async remove(id) {
+      return api("DELETE", `${CATEGORIES_URL}/${id}`);
+    },
+  };
+  // (optional) expose for debugging:
+  window.CategoryStore = CategoryStore;
+
+  // =======================
   // AUTH helpers (frontend)
-  // - login/register call backend
-  // - /api/auth/me to verify
-  // - sessionStorage stores a small fm_user for UI only
   // =======================
   const Auth = {
     async login(email, password) {
@@ -128,7 +149,6 @@
         email,
         password,
       });
-      // if backend returns ok:true -> token cookie set by backend
       return resp;
     },
     async register(name, email, password) {
@@ -142,7 +162,6 @@
     async me() {
       try {
         const resp = await api("GET", `${API_BASE}/auth/me`);
-        // resp might be {email, role} or {data:...}
         return resp;
       } catch (e) {
         return null;
@@ -255,27 +274,17 @@
   }
 
   // =======================
-  // DEFAULTS
+  // DEFAULTS (OLD CATEGORY SEED REMOVED)
   // =======================
-  const defaultCats = [
-    { name: "Chrome extensions", subs: ["Youtube", "Productivity", "Design"] },
-    { name: "Wordpress", subs: ["Plugins", "Themes"] },
-    { name: "Woo-commerce", subs: ["Payment", "Shipping"] },
-    { name: "Shopify", subs: ["Apps"] },
-    { name: "Others", subs: [] },
-  ];
-
-  function seedSample() {
-    if (!load(LS.categories)) save(LS.categories, defaultCats);
-  }
-  seedSample();
+  // Categories now fully from backend
 
   // =======================
   // RENDERING HELPERS
   // =======================
-  function renderCategories(listElId = "categoryList", catSelectId) {
-    const cats = load(LS.categories, []);
+  async function renderCategories(listElId = "categoryList", catSelectId) {
+    const cats = await CategoryStore.list();
     const el = document.getElementById(listElId);
+
     if (el) {
       el.innerHTML = "";
       cats.forEach((c) => {
@@ -284,6 +293,7 @@
         el.appendChild(li);
       });
     }
+
     if (catSelectId) {
       const sel = document.getElementById(catSelectId);
       if (sel) {
@@ -291,6 +301,8 @@
         cats.forEach((c) => sel.appendChild(new Option(c.name, c.name)));
       }
     }
+
+    return cats; // important when we need categories later
   }
 
   // Build tag cloud from backend
@@ -485,7 +497,7 @@
   }
 
   // =======================
-  // LISTING PAGE FILTER/SEARCH - unchanged
+  // LISTING PAGE FILTER/SEARCH
   // =======================
   if ($("#listSearch")) {
     const q0 = new URLSearchParams(location.search).get("q") || "";
@@ -499,8 +511,11 @@
       }, 400);
     });
 
-    renderCategories("", "categoryFilter");
-    const cats = load(LS.categories, []);
+    let cats = [];
+    (async () => {
+      cats = await renderCategories("", "categoryFilter");
+    })();
+
     $("#categoryFilter").addEventListener("change", function () {
       const v = this.value;
       const subsel = $("#subcatFilter");
@@ -525,7 +540,7 @@
   // =======================
   (async function initHome() {
     if ($("#pluginsContainer")) {
-      renderCategories("categoryList");
+      await renderCategories("categoryList");
       await listPlugins("pluginsContainer");
       await renderTagCloud($("#tagList"));
       document
@@ -540,7 +555,7 @@
   })();
 
   // =======================
-  // DETAIL PAGE (BACKEND) - updated to use backend comments & auth modal
+  // DETAIL PAGE (BACKEND) - comments & auth modal
   // =======================
   async function fetchCommentsForPlugin(pluginId) {
     try {
@@ -549,7 +564,6 @@
       });
       if (!resp.ok) throw new Error("Failed to fetch comments");
       const json = await resp.json();
-      // expected shape: { ok: true, items: [...] }
       return json.items ?? json.data ?? [];
     } catch (err) {
       console.warn("comments fetch failed", err);
@@ -568,7 +582,6 @@
     if (!resp.ok || json.ok === false) {
       throw new Error(json.message || "Failed to post comment");
     }
-    // returned item shape: { ok:true, item: { id, content, createdAt, user_name, ... } }
     return json.item ?? json;
   }
 
@@ -590,7 +603,6 @@
     try {
       const p = await Store.get(id);
 
-      // fetch comments from backend (only approved ones are returned by backend)
       const comments = await fetchCommentsForPlugin(id);
 
       const firstShot =
@@ -777,9 +789,7 @@
         const txt = $("#commentText").value.trim();
         if (!txt) return showToast("Write something", "warning");
         try {
-          // post to backend
           const posted = await postCommentToPlugin(id, txt);
-          // posted should contain user_name, content, createdAt, id
           const wrap = $("#commentsArea");
           const el = document.createElement("div");
           el.className = "card";
@@ -789,12 +799,10 @@
           )}</strong><div class="muted" style="font-size:12px;margin:6px 0;">${new Date(
             posted.createdAt
           ).toLocaleString()}</div><p>${escapeHtml(posted.content)}</p>`;
-          // prepend so newest are on top
           if (wrap) wrap.insertAdjacentElement("afterbegin", el);
           showToast("Comment posted", "success");
           $("#commentText").value = "";
         } catch (e) {
-          // if not authorized -> open login modal
           if (
             String(e.message).toLowerCase().includes("not authenticated") ||
             String(e.message).toLowerCase().includes("unauthorized")
@@ -818,7 +826,7 @@
   renderDetailFromQuery();
 
   // =======================
-  // SIGN-IN / REGISTER MODAL (backend) - improved toggle behavior
+  // SIGN-IN / REGISTER MODAL (backend)
   // =======================
   (function setupAuthModal() {
     const modal = $("#signinModal");
@@ -830,12 +838,11 @@
     const titleEl = $("#signinTitle");
     const emailEl = $("#signinEmail");
     const passEl = $("#signinPassword");
-    let nameEl = $("#signinName"); // may be null initially
+    let nameEl = $("#signinName");
     const submitBtn = form.querySelector('button[type="submit"]');
     const openRegisterBtn = $("#openRegisterBtn");
     const closeBtn = $("#closeSignin");
 
-    // State
     let mode = "login"; // "login" or "register"
 
     function ensureNameInput() {
@@ -845,7 +852,6 @@
         nameEl.placeholder = "Full name";
         nameEl.required = true;
         nameEl.style = "width:100%;padding:8px;margin-bottom:8px;";
-        // insert at top of form
         form.insertBefore(nameEl, form.firstElementChild);
       }
     }
@@ -863,12 +869,10 @@
         titleEl.textContent = "Register";
         ensureNameInput();
         submitBtn.textContent = "Register";
-        // hide the ghost register button to avoid duplicate CTA, change it to "Back"
         if (openRegisterBtn) {
           openRegisterBtn.textContent = "Back to login";
           openRegisterBtn.classList.add("ghost");
           openRegisterBtn.dataset.mode = "back";
-          // keep it visible as a back button (or hide if you prefer)
         }
       } else {
         titleEl.textContent = "Sign in to comment";
@@ -882,14 +886,11 @@
       }
     }
 
-    // initialize in login mode
     setMode("login");
 
-    // openRegisterBtn toggles between modes
     if (openRegisterBtn) {
       openRegisterBtn.addEventListener("click", (ev) => {
         ev.preventDefault();
-        // if it's currently acting as back button => go to login
         if (openRegisterBtn.dataset.mode === "back") {
           setMode("login");
         } else {
@@ -898,7 +899,6 @@
       });
     }
 
-    // Close button
     closeBtn?.addEventListener("click", () =>
       modal.setAttribute("aria-hidden", "true")
     );
@@ -916,32 +916,25 @@
         if (mode === "register") {
           if (!name) return showToast("Please enter your name", "warning");
           await Auth.register(name, email, password);
-          // after register, auto-login
           await Auth.login(email, password);
           sessionStorage.setItem("fm_user", JSON.stringify({ name, email }));
           showToast("Registered and signed in as " + name, "success");
         } else {
           await Auth.login(email, password);
-          // store minimal frontend session
           sessionStorage.setItem("fm_user", JSON.stringify({ email }));
           showToast("Signed in", "success");
         }
 
-        // Reset modal & UI to login mode for next time
         setMode("login");
         modal.setAttribute("aria-hidden", "true");
 
-        // Clear fields for hygiene
         emailEl.value = "";
         passEl.value = "";
         if (nameEl) nameEl.value = "";
 
-        // Re-render detail so comment UI toggles
         renderDetailFromQuery();
       } catch (err) {
-        // show backend message if present
         showToast(err.message || "Auth failed", "error");
-        // if backend said unauthenticated for posting, open login modal automatically is handled elsewhere
       }
     });
   })();
@@ -966,54 +959,151 @@
   // ADMIN (CREATE/LIST/DELETE/EDIT via BACKEND)
   // =======================
   if ($("#adminPlugins") || $("#addPluginForm")) {
-    // -------- categories UI (still LS) ----------
-    function populateAdminCats() {
-      const cats = load(LS.categories, []);
+    // -------- categories UI (backend) ----------
+    async function populateAdminCats() {
+      const cats = await CategoryStore.list(); // from backend
       const adminCats = $("#adminCats");
       if (adminCats) adminCats.innerHTML = "";
+
       cats.forEach((c) => {
+        const id = c._id || c.id;
         const li = document.createElement("li");
-        li.innerHTML = `${c.name} 
-          <button data-del="${
-            c.name
-          }" class="small delCatBtn" title="Delete category" style="background:transparent;border:none;padding:2px 6px;vertical-align:middle;">
-            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" style="vertical-align:middle;">
-              <path d="M6 7v7m4-7v7m4-7v7M3 5h14M8 3h4a1 1 0 0 1 1 1v1H7V4a1 1 0 0 1 1-1z" stroke="#d00" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
-          ${
-            c.subs && c.subs.length
-              ? `<div style="font-size:13px;color:#888;margin-left:10px;">Subs: ${c.subs.join(
-                  ", "
-                )}</div>`
-              : ""
-          }`;
+        li.innerHTML = `
+      ${escapeHtml(c.name)}
+      <button data-del="${id}"
+              class="small delCatBtn"
+              title="Delete category"
+              style="background:transparent;border:none;padding:2px 6px;vertical-align:middle;">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" style="vertical-align:middle;">
+          <path d="M6 7v7m4-7v7m4-7v7M3 5h14M8 3h4a1 1 0 0 1 1 1v1H7V4a1 1 0 0 1 1-1z"
+                stroke="#d00" stroke-width="1.5"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      ${
+        c.subs && c.subs.length
+          ? `<div style="font-size:13px;color:#888;margin-left:10px;">
+               Subs: ${c.subs.join(", ")}
+             </div>`
+          : ""
+      }
+    `;
         adminCats?.appendChild(li);
       });
-      renderCategories("", "pCategory");
-      populateCatSelectForSub();
-      $("#pCategory")?.addEventListener("change", function () {
-        const name = this.value;
-        const cats = load(LS.categories, []);
-        const found = cats.find((x) => x.name === name);
-        $("#pSubcategory").innerHTML = '<option value="">Select sub</option>';
-        ((found && found.subs) || []).forEach((s) =>
-          $("#pSubcategory").appendChild(new Option(s, s))
-        );
+
+      // update "Add Plugin" category dropdown
+      await renderCategories("", "pCategory");
+      await populateCatSelectForSub();
+    }
+
+    async function populateCatSelectForSub() {
+      const cats = await CategoryStore.list();
+      const sel = $("#catSelectForSub");
+      if (!sel) return;
+
+      sel.innerHTML = "";
+      cats.forEach((c) => {
+        const id = c._id || c.id;
+        sel.appendChild(new Option(c.name, id));
       });
     }
 
-    function populateCatSelectForSub() {
-      const cats = load(LS.categories, []);
-      const sel = $("#catSelectForSub");
-      if (sel) {
-        sel.innerHTML = "";
-        cats.forEach((c) => sel.appendChild(new Option(c.name, c.name)));
-      }
-    }
-
+    // initial load
     populateAdminCats();
-    populateCatSelectForSub();
+
+    // ------- category buttons wiring -------
+    const newCatInput = $("#newCategory"); // text input above "Add"
+    const addCatBtn = $("#addCategoryBtn"); // that "Add" button
+    const loadSampleBtn = $("#loadSampleBtn"); // "Load Sample Data" button
+    const newSubInput = $("#newSubcategory"); // text for new subcategory
+    const addSubBtn = $("#addSubcategoryBtn"); // "Add Subcategory" button
+    const catSelectForSub = $("#catSelectForSub"); // select for which category
+
+    // default sample categories (used only when clicking "Load Sample Data")
+    const defaultCats = [
+      {
+        name: "Chrome extensions",
+        subs: ["Youtube", "Productivity", "Design"],
+      },
+      { name: "Wordpress", subs: ["Plugins", "Themes"] },
+      { name: "Woo-commerce", subs: ["Payment", "Shipping"] },
+      { name: "Shopify", subs: ["Apps"] },
+      { name: "Others", subs: [] },
+    ];
+
+    // Add category
+    addCatBtn?.addEventListener("click", async () => {
+      const name = newCatInput?.value.trim();
+      if (!name) return showToast("Enter a category name", "warning");
+
+      try {
+        await CategoryStore.create({ name, subs: [] });
+        showToast("Category added", "success");
+        newCatInput.value = "";
+        await populateAdminCats();
+      } catch (err) {
+        showToast("Failed to add category: " + err.message, "error");
+      }
+    });
+
+    // Load sample data
+    loadSampleBtn?.addEventListener("click", async () => {
+      try {
+        for (const cat of defaultCats) {
+          await CategoryStore.create(cat);
+        }
+        showToast("Sample categories loaded", "success");
+        await populateAdminCats();
+      } catch (err) {
+        showToast("Failed to load samples: " + err.message, "error");
+      }
+    });
+
+    // Add subcategory
+    addSubBtn?.addEventListener("click", async () => {
+      const catId = catSelectForSub?.value;
+      const subName = newSubInput?.value.trim();
+
+      if (!catId) return showToast("Select a category first", "warning");
+      if (!subName) return showToast("Enter a subcategory name", "warning");
+
+      try {
+        const cats = await CategoryStore.list();
+        const cat = cats.find((c) => (c._id || c.id) === catId);
+        if (!cat) return showToast("Category not found", "error");
+
+        const newSubs = Array.from(new Set([...(cat.subs || []), subName]));
+        await CategoryStore.update(catId, { subs: newSubs });
+
+        showToast("Subcategory added", "success");
+        newSubInput.value = "";
+        await populateAdminCats();
+      } catch (err) {
+        showToast("Failed to add subcategory: " + err.message, "error");
+      }
+    });
+
+    // Delete category (click trash icon)
+    $("#adminCats")?.addEventListener("click", async (ev) => {
+      const btn = ev.target.closest(".delCatBtn");
+      if (!btn) return;
+
+      const id = btn.dataset.del;
+      const ok = await confirmModal("Delete this category?", {
+        okText: "Delete",
+        cancelText: "Cancel",
+        variant: "danger",
+      });
+      if (!ok) return;
+
+      try {
+        await CategoryStore.remove(id);
+        showToast("Category deleted", "info");
+        await populateAdminCats();
+      } catch (err) {
+        showToast("Delete failed: " + err.message, "error");
+      }
+    });
 
     // helper for reading screenshot files
     const fileToDataURL = (file) =>
@@ -1106,7 +1196,7 @@
 
     renderAdminPlugins();
 
-    // -------- Edit / Delete handlers ----------
+    // -------- Edit / Delete plugin handlers ----------
     $("#adminPlugins")?.addEventListener("click", async function (ev) {
       const editBtn = ev.target.closest("button.editPlugin");
       const delBtn = ev.target.closest("button.delPlugin");
@@ -1122,7 +1212,7 @@
           $("#editDesc").value = p.desc || "";
           $("#editDescEditor").innerHTML = p.descText || "";
           $("#editTags").value = (p.tags || []).join(", ");
-          fillEditCategorySelects(p.category || "", p.subcategory || "");
+          await fillEditCategorySelects(p.category || "", p.subcategory || "");
           $("#editVideo").value = p.video || "";
           $("#editAppLink").value = p.appLink || "";
           if ($("#editScreens")) $("#editScreens").value = "";
@@ -1156,8 +1246,8 @@
       }
     });
 
-    function fillEditCategorySelects(selectedCat, selectedSub) {
-      const cats = load(LS.categories, []);
+    async function fillEditCategorySelects(selectedCat, selectedSub) {
+      const cats = await CategoryStore.list();
       const catSel = $("#editCategory");
       const subSel = $("#editSubcategory");
       if (!catSel || !subSel) return;
@@ -1247,9 +1337,7 @@
       if (!wrap) return;
       wrap.innerHTML = `<p class="muted">Loading requests...</p>`;
 
-      const endpoints = [
-        `${API_BASE}/requests`, // backend
-      ];
+      const endpoints = [`${API_BASE}/requests`];
 
       let items = null;
       for (const url of endpoints) {
@@ -1579,7 +1667,7 @@
   }
 
   // =======================
-  // Populate detail sidebar & other helpers (unchanged)
+  // Populate detail sidebar & other helpers
   // =======================
   async function populateDetailSidebar(plugin) {
     try {
@@ -1624,7 +1712,7 @@
       /* ignore */
     }
 
-    const cats = load(LS.categories, []);
+    const cats = await CategoryStore.list();
     const catWrap = $("#detailCategories");
     if (catWrap) {
       catWrap.innerHTML = "";
@@ -1645,7 +1733,7 @@
   }
 
   // =======================
-  // LISTING PAGE WITH QUERY PARAMS (unchanged)
+  // LISTING PAGE WITH QUERY PARAMS
   // =======================
   if (
     location.pathname.endsWith("/listing.html") ||
@@ -1657,7 +1745,7 @@
   }
 
   // =======================
-  // GENERIC MODAL HELPERS (unchanged)
+  // GENERIC MODAL HELPERS
   // =======================
   function enableModalAutoClose(
     modalSelector,
@@ -1686,12 +1774,12 @@
   }
 
   // =======================
-  // MOBILE FILTER SIDEBARS (unchanged)
+  // MOBILE FILTER SIDEBARS
   // =======================
   if ($("#openFilterSidebar")) {
     $("#openFilterSidebar").addEventListener("click", async function () {
       $("#filterSidebarModal").setAttribute("aria-hidden", "false");
-      const cats = load(LS.categories, []);
+      const cats = await CategoryStore.list();
       const catList = $("#categoryListMobile");
       catList.innerHTML = "";
       cats.forEach((c) => {
@@ -1717,7 +1805,7 @@
   if ($("#openFilterSidebarDetail")) {
     $("#openFilterSidebarDetail").addEventListener("click", async function () {
       $("#filterSidebarModalDetail").setAttribute("aria-hidden", "false");
-      const cats = load(LS.categories, []);
+      const cats = await CategoryStore.list();
       const catList = $("#categoryListMobileDetail");
       catList.innerHTML = "";
       cats.forEach((c) => {
