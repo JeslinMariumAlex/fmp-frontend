@@ -940,18 +940,34 @@
   })();
 
   // =======================
-  // CONTACT FORM (LS) unchanged
+  // CONTACT FORM (backend)
   // =======================
   if ($("#contactForm")) {
-    $("#contactForm").addEventListener("submit", function (ev) {
+    $("#contactForm").addEventListener("submit", async function (ev) {
       ev.preventDefault();
-      const msg = $("#contactMsg").value,
-        email = $("#contactEmail").value;
-      const arr = load(LS.contacts, []);
-      arr.push({ id: uid(), msg, email, created: Date.now() });
-      save(LS.contacts, arr);
-      showToast("Thank you — we will reach out.", "success");
-      this.reset();
+
+      const msg = $("#contactMsg").value.trim();
+      const email = $("#contactEmail").value.trim();
+
+      if (!msg || !email) {
+        showToast("Please fill in both fields.", "warning");
+        return;
+      }
+
+      try {
+        // This hits: http://localhost:5000/api/contact in local
+        // or https://fmp-backend-wrdc.onrender.com/api/contact in production
+        await api("POST", `${API_BASE}/contact`, {
+          message: msg,
+          email: email,
+        });
+
+        showToast("Thank you — we will reach out.", "success");
+        this.reset();
+      } catch (err) {
+        console.error(err);
+        showToast("Failed to send message: " + err.message, "error");
+      }
     });
   }
 
@@ -1541,9 +1557,6 @@
         renderRequests();
       });
 
-    // initial load
-    renderRequests();
-
     // close buttons for viewRequestModal
     document
       .getElementById("closeViewRequest")
@@ -1584,6 +1597,83 @@
         document.body.classList.remove("modal-open");
       }
     });
+    // Render requests initially
+    renderRequests();
+
+    // =======================
+    // ADMIN CONTACT MESSAGES
+    // =======================
+    async function renderAdminContacts() {
+      const wrap = document.getElementById("adminContacts");
+      if (!wrap) return;
+
+      wrap.innerHTML = `<p class="muted">Loading contact messages...</p>`;
+
+      try {
+        const resp = await api("GET", `${API_BASE}/contact`);
+        const items = resp.data ?? resp.items ?? resp;
+
+        if (!items || !items.length) {
+          wrap.innerHTML = "<p>No contact messages yet.</p>";
+          return;
+        }
+
+        wrap.innerHTML = "";
+        items.forEach((msg) => {
+          const id = msg._id || msg.id;
+          const created = new Date(
+            msg.createdAt || msg.created || Date.now()
+          ).toLocaleString();
+
+          const card = document.createElement("div");
+          card.className = "card";
+          card.innerHTML = `
+            <strong>${escapeHtml(msg.email || "Unknown")}</strong>
+            <div class="muted" style="font-size:12px;margin:4px 0;">
+              ${created}
+            </div>
+            <p>${escapeHtml(msg.message || "")}</p>
+            <div style="margin-top:8px; text-align:right;">
+              <button class="delPlugin small delContactBtn" data-delc="${escapeHtml(
+                id
+              )}">Delete</button>
+            </div>
+          `;
+          wrap.appendChild(card);
+        });
+      } catch (err) {
+        console.error(err);
+        wrap.innerHTML = `<p class="error">Failed to load contact messages: ${escapeHtml(
+          err.message
+        )}</p>`;
+      }
+    }
+
+    // Delete handler for contact messages
+    document
+      .getElementById("adminContacts")
+      ?.addEventListener("click", async (ev) => {
+        const btn = ev.target.closest("button.delContactBtn");
+        if (!btn) return;
+
+        const id = btn.dataset.delc;
+        const ok = await confirmModal("Delete this contact message?", {
+          okText: "Delete",
+          cancelText: "Cancel",
+          variant: "danger",
+        });
+        if (!ok) return;
+
+        try {
+          await api("DELETE", `${API_BASE}/contact/${id}`);
+          showToast("Contact message deleted", "info");
+          renderAdminContacts();
+        } catch (err) {
+          showToast("Delete failed: " + err.message, "error");
+        }
+      });
+    // Initial load of contact messages in admin dashboard
+    renderAdminContacts();
 
     // =======================
     // ADMIN COMMENTS (from backend)
