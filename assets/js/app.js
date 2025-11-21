@@ -1,4 +1,4 @@
-// app.js
+// assets/js/app.js
 (function () {
   // =======================
   // TOAST SYSTEM (top-right, auto-styled)
@@ -40,14 +40,12 @@
 
   // =======================
   // LOCAL STORAGE KEYS (keep for requests/contacts)
-  // comments moved to backend, categories now backend too
   // =======================
   const LS = {
     plugins: "fm_plugins",
-    categories: "fm_cats", // not used anymore for categories
+    categories: "fm_cats",
     requests: "fm_requests",
     contacts: "fm_contacts",
-    // comments: "fm_comments" (no longer used for site comments)
   };
 
   // =======================
@@ -145,7 +143,8 @@
   // =======================
   const Auth = {
     async login(email, password) {
-      const resp = await api("POST", `${API_BASE}/auth/user-login`, {
+      // unified login: env-admin OR DB user handled by backend /auth/login
+      const resp = await api("POST", `${API_BASE}/auth/login`, {
         email,
         password,
       });
@@ -159,10 +158,17 @@
       });
       return resp;
     },
+    // Note: me() intentionally does a plain fetch so we can return null on
+    // unauthenticated (instead of api() throwing).
     async me() {
       try {
-        const resp = await api("GET", `${API_BASE}/auth/me`);
-        return resp;
+        const res = await fetch(`${API_BASE}/auth/me`, {
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (!res.ok) return null;
+        const json = await res.json().catch(() => null);
+        return json;
       } catch (e) {
         return null;
       }
@@ -177,6 +183,112 @@
       }
     },
   };
+
+  // =======================
+  // NAVBAR: show Admin only for admin users
+  // NOTE: made async so callers can await
+  // =======================
+  async function updateAdminNavVisibility() {
+    const adminItem = document.querySelector(".admin-only");
+    if (!adminItem) return; // not all pages have this
+
+    try {
+      const me = await Auth.me();
+
+      const role =
+        me?.user?.role || me?.role || me?.data?.role || me?.data?.user?.role;
+
+      adminItem.style.display = role === "admin" ? "inline-block" : "none";
+    } catch (err) {
+      adminItem.style.display = "none";
+    }
+  }
+
+  // make it callable from other code
+  window.updateAdminNavVisibility = updateAdminNavVisibility;
+
+  // initial check on page load
+  updateAdminNavVisibility().catch(() => {});
+
+  // Helper to logout and ensure history doesn't allow back to admin page
+  async function logoutAndRedirect() {
+    try {
+      await fetch(`${API_BASE}/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (err) {
+      // ignore network errors
+      console.warn("logout request failed", err);
+    } finally {
+      try { sessionStorage.removeItem("fm_user"); } catch {}
+      try { window.refreshAuthBtn && window.refreshAuthBtn(); } catch {}
+      try { window.updateAdminNavVisibility && window.updateAdminNavVisibility(); } catch {}
+      // replace history entry so Back won't return to admin page
+      location.replace("index.html");
+    }
+  }
+  window.logoutAndRedirect = logoutAndRedirect;
+
+  // =======================
+  // NAVBAR AUTH BUTTON (Sign In / Logout)
+  // =======================
+  (function setupAuthNav() {
+    const authBtn = document.getElementById("navAuthBtn");
+    if (!authBtn) return; // some pages may not have this
+
+    function getCurrentUser() {
+      const raw = sessionStorage.getItem("fm_user");
+      if (!raw) return null;
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return null;
+      }
+    }
+
+    function refreshAuthBtn() {
+      const user = getCurrentUser();
+      authBtn.textContent = user ? "Logout" : "Sign In";
+    }
+
+    // initial label on page load
+    refreshAuthBtn();
+
+    // click -> either open modal or logout
+    authBtn.addEventListener("click", async (e) => {
+      e.preventDefault(); // avoid jumping to top with "#"
+
+      const user = getCurrentUser();
+
+      if (user) {
+        // Already logged in → perform logout
+        try {
+          await logoutAndRedirect();
+          showToast("Logged out", "info");
+        } catch (err) {
+          showToast("Logout failed: " + err.message, "error");
+        } finally {
+          // update nav label
+          refreshAuthBtn();
+          // hide Admin link (re-check backend / cookie)
+          if (window.updateAdminNavVisibility) {
+            // call it but don't await blocking UI (it is async)
+            window.updateAdminNavVisibility();
+          }
+        }
+      } else {
+        // Not logged in → open sign in modal
+        const modal = document.getElementById("signinModal");
+        if (modal) {
+          modal.setAttribute("aria-hidden", "false");
+        }
+      }
+    });
+
+    // 🔁 expose for other code (like login modal) to call
+    window.refreshAuthBtn = refreshAuthBtn;
+  })();
 
   // =======================
   // UTILITIES
@@ -621,9 +733,7 @@
               <a href="${s.url}" data-scr="${
                   s.url
                 }" data-idx="${idx}" class="screenshot-link" style="display:inline-block">
-                <img src="${s.url}" alt="screenshot ${
-                  idx + 1
-                }" onerror="this.src='https://placehold.co/120x80?text=Shot'" style="width:120px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #eee">
+                <img src="${s.url}" alt="screenshot ${idx + 1}" onerror="this.src='https://placehold.co/120x80?text=Shot'" style="width:120px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #eee">
               </a>`
               )
               .join("")}
@@ -646,15 +756,9 @@
           : ""
       }</p>
               <div class="meta-actions">
-                <button data-act="heart" data-id="${getId(p)}">❤ ${
-        p.hearts || 0
-      }</button>
-                <button data-act="like" data-id="${getId(p)}">👍 ${
-        p.likes || 0
-      }</button>
-                <button data-act="ok" data-id="${getId(p)}">👌 ${
-        p.oks || 0
-      }</button>
+                <button data-act="heart" data-id="${getId(p)}">❤ ${p.hearts || 0}</button>
+                <button data-act="like" data-id="${getId(p)}">👍 ${p.likes || 0}</button>
+                <button data-act="ok" data-id="${getId(p)}">👌 ${p.oks || 0}</button>
                 <button id="shareBtn">Share</button>
               </div>
             </div>
@@ -691,15 +795,11 @@
                 ? comments
                     .map(
                       (c) =>
-                        `<div class="card" data-comment-id="${
-                          c.id
-                        }"><strong>${escapeHtml(
+                        `<div class="card" data-comment-id="${c.id}"><strong>${escapeHtml(
                           c.user_name || "User"
                         )}</strong><div class="muted" style="font-size:12px;margin:6px 0;">${new Date(
                           c.createdAt
-                        ).toLocaleString()}</div><p>${escapeHtml(
-                          c.content
-                        )}</p></div>`
+                        ).toLocaleString()}</div><p>${escapeHtml(c.content)}</p></div>`
                     )
                     .join("")
                 : "<p>No comments yet.</p>"
@@ -875,7 +975,7 @@
           openRegisterBtn.dataset.mode = "back";
         }
       } else {
-        titleEl.textContent = "Sign in to comment";
+        titleEl.textContent = "Sign In";
         removeNameInput();
         submitBtn.textContent = "Sign In";
         if (openRegisterBtn) {
@@ -903,6 +1003,7 @@
       modal.setAttribute("aria-hidden", "true")
     );
 
+    // ---- NEW: robust submit handler that waits for cookie -> UI update ----
     form.addEventListener("submit", async function (ev) {
       ev.preventDefault();
       const email = emailEl?.value?.trim();
@@ -913,25 +1014,69 @@
         return showToast("Please fill email and password", "warning");
 
       try {
+        let role = "user";
+        let userObj = {};
+
         if (mode === "register") {
-          if (!name) return showToast("Please enter your name", "warning");
-          await Auth.register(name, email, password);
-          await Auth.login(email, password);
-          sessionStorage.setItem("fm_user", JSON.stringify({ name, email }));
-          showToast("Registered and signed in as " + name, "success");
+          const regResp = await Auth.register(name, email, password);
+          userObj = regResp.user || {};
+          role = regResp.role || userObj.role || "user";
+          sessionStorage.setItem(
+            "fm_user",
+            JSON.stringify({
+              name: userObj.name || name,
+              email: userObj.email || email,
+              role,
+            })
+          );
+          showToast("Registered and signed in as " + (userObj.name || name), "success");
         } else {
-          await Auth.login(email, password);
-          sessionStorage.setItem("fm_user", JSON.stringify({ email }));
-          showToast("Signed in", "success");
+          const loginResp = await Auth.login(email, password);
+          userObj = loginResp.user || {};
+          role = loginResp.role || userObj.role || "user";
+          sessionStorage.setItem(
+            "fm_user",
+            JSON.stringify({
+              name: userObj.name || "",
+              email: userObj.email || email,
+              role,
+            })
+          );
+          showToast("Signed in" + (userObj.name ? " as " + userObj.name : ""), "success");
         }
 
+        // Close modal & clear fields
         setMode("login");
         modal.setAttribute("aria-hidden", "true");
-
         emailEl.value = "";
         passEl.value = "";
         if (nameEl) nameEl.value = "";
 
+        // Refresh nav text immediately
+        if (window.refreshAuthBtn) window.refreshAuthBtn();
+
+        // IMPORTANT: update admin visibility AFTER cookie is (likely) set.
+        // We'll try a small retry loop to be tolerant of timing issues.
+        if (window.updateAdminNavVisibility) {
+          const tryUpdate = async (tries = 6) => {
+            for (let i = 0; i < tries; i++) {
+              try {
+                const maybe = window.updateAdminNavVisibility();
+                if (maybe && typeof maybe.then === "function") {
+                  await maybe;
+                }
+                // tiny delay to give browser/server a moment
+                await new Promise((r) => setTimeout(r, 120));
+                break;
+              } catch (err) {
+                await new Promise((r) => setTimeout(r, 150));
+              }
+            }
+          };
+          await tryUpdate();
+        }
+
+        // Re-render detail page (if present)
         renderDetailFromQuery();
       } catch (err) {
         showToast(err.message || "Auth failed", "error");
@@ -1874,7 +2019,7 @@
       catList.innerHTML = "";
       cats.forEach((c) => {
         const li = document.createElement("li");
-        li.innerHTML = `<button class="link-btn" data-cat="${c.name}">${c.name}</button>`;
+        li.innerHTML = `<buttonclass="link-btn" data-cat="${c.name}">${c.name}</button>`;
         catList.appendChild(li);
       });
       catList.addEventListener("click", function (ev) {
@@ -1919,4 +2064,34 @@
   }
 
   // The rest of your admin/listing/request code (edit/create/delete) is intentionally kept.
+  // end IIFE
+  // ----------------------------------------------------------------------
+  // PROTECTION AGAINST BF_CACHE: re-check auth on pageshow and hide/redirect admin UI
+  window.addEventListener("pageshow", async (event) => {
+    try {
+      // always re-sync navbar/admin link visibility when page is shown (handles bfcache)
+      await updateAdminNavVisibility();
+
+      // if user is on admin.html and not admin, redirect to index#signin
+      const isAdminPage =
+        location.pathname.endsWith("/admin.html") ||
+        location.pathname.endsWith("admin.html");
+
+      if (isAdminPage) {
+        const me = await Auth.me();
+        const role = me?.user?.role || me?.role || me?.data?.role || me?.data?.user?.role;
+        if (role !== "admin") {
+          // replace so back won't return to admin
+          location.replace("index.html#signin");
+        } else {
+          // ensure admin UI visible
+          document.body.setAttribute("data-auth", "ok");
+        }
+      }
+    } catch (err) {
+      // if anything fails, hide admin UI and avoid throwing
+      const adminItem = document.querySelector(".admin-only");
+      if (adminItem) adminItem.style.display = "none";
+    }
+  });
 })();

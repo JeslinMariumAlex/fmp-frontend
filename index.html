@@ -1,3 +1,4 @@
+<!-- index.html -->
 <!doctype html>
 <html lang="en">
 
@@ -23,7 +24,7 @@
 								<div class="menu-section">
 									<h4>Chrome Extentions</h4>
 									<ul class="menu-list">
-										<li class="menu-item" data-title="Amazing YouTube Helper" >
+										<li class="menu-item" data-title="Amazing YouTube Helper">
 											<span class="icon">📱</span>
 											<div>
 												<div class="menu-item-title">Amazing YouTube Helper</div>
@@ -57,6 +58,18 @@
 					</li>
 					<li class="nav-item"><a href="listing.html" class="nav-link">Browse</a></li>
 					<li class="nav-item"><a href="contact.html" class="nav-link">Contact</a></li>
+
+					<!-- 👇 Hidden by default -->
+					<li class="nav-item" id="adminNav">
+						<a href="admin.html" class="nav-link admin-only">Admin</a>
+					</li>
+
+
+					<li class="nav-item" id="authNavContainer">
+						<a href="#" id="navAuthBtn" class="nav-link">Sign In</a>
+
+					</li>
+
 				</ul>
 			</nav>
 			<button class="mobile-menu-btn" id="mobileMenuBtn">
@@ -193,6 +206,32 @@
 			</form>
 		</div>
 	</div>
+	<!-- Sign In / Register Modal (used by app.js) -->
+	<div id="signinModal" class="modal" aria-hidden="true">
+		<div class="modal-panel">
+			<button class="close" id="closeSignin">&times;</button>
+			<h3 id="signinTitle">Sign in</h3>
+
+			<form id="signinForm">
+				<!-- Name field will be dynamically added in "Register" mode by JS -->
+
+				<input id="signinEmail" type="email" placeholder="Email" required
+					style="width:100%;padding:8px;margin-bottom:8px;" />
+
+				<input id="signinPassword" type="password" placeholder="Password" required
+					style="width:100%;padding:8px;margin-bottom:8px;" />
+
+				<button type="submit" class="btn" style="width:100%;margin-top:4px;">
+					Sign In
+				</button>
+
+				<button id="openRegisterBtn" class="btn ghost" style="width:100%;margin-top:8px;">
+					Register
+				</button>
+			</form>
+		</div>
+	</div>
+
 
 	<script src="assets/js/app.js"></script>
 	<script>
@@ -221,53 +260,62 @@
 	</script>
 
 	<script>
-// === Products mega-menu: open detail page dynamically (no hardcoded IDs) ===
+		// === Products mega-menu: open detail page dynamically (no hardcoded IDs) ===
 
-// Build a title -> id map once (lazy)
-let __titleToId = null;
-async function ensureTitleMap() {
-  if (__titleToId) return __titleToId;
-  const items = await window.Store.list(); // [{_id,title,...}]
-  __titleToId = new Map(
-    (items || []).map(p => [(p.title || '').trim().toLowerCase(), (p._id || p.id)])
-  );
-  return __titleToId;
-}
+		// Build a title -> id map once (lazy)
+		let __titleToId = null;
+		async function ensureTitleMap() {
+			if (__titleToId) return __titleToId;
+			const items = await window.Store.list(); // [{_id,title,...}]
+			__titleToId = new Map(
+				(items || []).map(p => [(p.title || '').trim().toLowerCase(), (p._id || p.id)])
+			);
+			return __titleToId;
+		}
 
-// Delegate clicks to rows in the mega-menu
-document.addEventListener('click', async (e) => {
-  const row = e.target.closest('.megamenu .menu-item[data-title]');
-  if (!row) return;
+		// Delegate clicks to rows in the mega-menu
+		document.addEventListener('click', async (e) => {
+			const row = e.target.closest('.megamenu .menu-item[data-title]');
+			if (!row) return;
 
-  e.preventDefault();
+			e.preventDefault();
 
-  const title = (row.dataset.title || row.querySelector('.menu-item-title')?.textContent || '')
-                .trim().toLowerCase();
-  if (!title) return;
+			const title = (row.dataset.title || row.querySelector('.menu-item-title')?.textContent || '')
+				.trim().toLowerCase();
+			if (!title) return;
 
-  try {
-    const map = await ensureTitleMap();
-    const id = map.get(title);
+			try {
+				const map = await ensureTitleMap();
+				const id = map.get(title);
 
-    if (id) {
-      location.href = `detail.html?id=${id}`;
-    } else {
-      // Fallback: live search, then update the cache
-      const results = await window.Store.list({ q: title });
-      const match = (results || []).find(p => (p.title || '').trim().toLowerCase() === title);
-      if (match) {
-        const mid = match._id || match.id;
-        __titleToId.set(title, mid);
-        location.href = `detail.html?id=${mid}`;
-      } else {
-        window.showToast?.('Plugin not found', 'warning');
-      }
-    }
-  } catch (err) {
-    window.showToast?.('Open failed: ' + err.message, 'error');
-  }
-});
-</script>
+				if (id) {
+					location.href = `detail.html?id=${id}`;
+				} else {
+					// Fallback: live search, then update the cache
+					const results = await window.Store.list({ q: title });
+					const match = (results || []).find(p => (p.title || '').trim().toLowerCase() === title);
+					if (match) {
+						const mid = match._id || match.id;
+						__titleToId.set(title, mid);
+						location.href = `detail.html?id=${mid}`;
+					} else {
+						window.showToast?.('Plugin not found', 'warning');
+					}
+				}
+			} catch (err) {
+				window.showToast?.('Open failed: ' + err.message, 'error');
+			}
+		});
+	</script>
+	<script>
+		document.addEventListener('DOMContentLoaded', function () {
+			if (location.hash === '#signin') {
+				const modal = document.getElementById('signinModal');
+				if (modal) modal.setAttribute('aria-hidden', 'false');
+			}
+		});
+	</script>
+
 
 </body>
 

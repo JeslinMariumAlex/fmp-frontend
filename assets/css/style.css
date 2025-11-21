@@ -1655,3 +1655,8 @@ article,
   position: absolute;
   z-index: 4000;
 }
+
+.admin-only {
+  display: none;
+}
+
