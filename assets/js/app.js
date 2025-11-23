@@ -135,7 +135,6 @@
       return api("DELETE", `${CATEGORIES_URL}/${id}`);
     },
   };
-  // (optional) expose for debugging:
   window.CategoryStore = CategoryStore;
 
   // =======================
@@ -192,15 +191,34 @@
     const adminItem = document.querySelector(".admin-only");
     if (!adminItem) return; // not all pages have this
 
+    // FAST UI: if sessionStorage already contains a user with role 'admin'
+    // show the Admin link immediately for better UX, then verify with backend.
+    try {
+      const raw = sessionStorage.getItem("fm_user");
+      if (raw) {
+        try {
+          const obj = JSON.parse(raw);
+          if (obj && obj.role === "admin") {
+            adminItem.style.display = "inline-block";
+          }
+        } catch (e) {
+          // ignore parse errors
+        }
+      }
+    } catch (e) {
+      // ignore storage errors
+    }
+
+    // VERIFY from backend (authoritative). If backend returns non-admin,
+    // hide the link. If backend unreachable, we keep the sessionStorage
+    // driven visibility (so admin sees admin link until server check).
     try {
       const me = await Auth.me();
-
       const role =
         me?.user?.role || me?.role || me?.data?.role || me?.data?.user?.role;
-
       adminItem.style.display = role === "admin" ? "inline-block" : "none";
     } catch (err) {
-      adminItem.style.display = "none";
+      // If verify failed, fallback was already applied. Ensure not throwing.
     }
   }
 
