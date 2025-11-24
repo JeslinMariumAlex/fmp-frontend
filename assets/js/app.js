@@ -143,7 +143,7 @@
   const Auth = {
     async login(email, password) {
       // unified login: env-admin OR DB user handled by backend /auth/login
-      const resp = await api("POST", `${API_BASE}/auth/login`, {
+      const resp = await api("POST", `${API_BASE}/auth/user-login`, {
         email,
         password,
       });
@@ -187,38 +187,21 @@
   // NAVBAR: show Admin only for admin users
   // NOTE: made async so callers can await
   // =======================
+  // Simple no-op admin visibility handler — always hide admin tab in navbar.
+  // This removes any JS-controlled "admin" show/hide behavior while keeping
+  // other admin-page protections intact.
   async function updateAdminNavVisibility() {
-    const adminItem = document.querySelector(".admin-only");
-    if (!adminItem) return; // not all pages have this
-
-    // FAST UI: if sessionStorage already contains a user with role 'admin'
-    // show the Admin link immediately for better UX, then verify with backend.
     try {
-      const raw = sessionStorage.getItem("fm_user");
-      if (raw) {
-        try {
-          const obj = JSON.parse(raw);
-          if (obj && obj.role === "admin") {
-            adminItem.style.display = "inline-block";
-          }
-        } catch (e) {
-          // ignore parse errors
-        }
+      const adminItem = document.querySelector(".admin-only");
+      if (adminItem) {
+        // ensure navbar never shows admin link
+        adminItem.style.display = "none";
+        // also remove it from tab order/accessibility
+        adminItem.setAttribute("aria-hidden", "true");
+        adminItem.tabIndex = -1;
       }
     } catch (e) {
-      // ignore storage errors
-    }
-
-    // VERIFY from backend (authoritative). If backend returns non-admin,
-    // hide the link. If backend unreachable, we keep the sessionStorage
-    // driven visibility (so admin sees admin link until server check).
-    try {
-      const me = await Auth.me();
-      const role =
-        me?.user?.role || me?.role || me?.data?.role || me?.data?.user?.role;
-      adminItem.style.display = role === "admin" ? "inline-block" : "none";
-    } catch (err) {
-      // If verify failed, fallback was already applied. Ensure not throwing.
+      // noop — avoid throwing
     }
   }
 
@@ -227,6 +210,63 @@
 
   // initial check on page load
   updateAdminNavVisibility().catch(() => {});
+  // =======================
+  // IMMEDIATE ADMIN GATE (runs once on load)
+  // If user opens admin.html directly, verify with backend and redirect to admin-login.html if not admin.
+  // This runs early so admin UI isn't shown briefly to unauthenticated users.
+  (async function immediateAdminGate() {
+    try {
+      const isAdminPage =
+        location.pathname.endsWith("/admin.html") ||
+        location.pathname.endsWith("admin.html");
+      if (!isAdminPage) return;
+
+      // Ask backend /auth/me (uses cookie) for authoritative info
+      const res = await fetch(`${API_BASE}/auth/me`, {
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        // not authenticated -> force admin login
+        location.replace("admin-login.html");
+        return;
+      }
+
+      const me = await res.json().catch(() => ({}));
+      const role =
+        me?.user?.role || me?.role || me?.data?.role || me?.data?.user?.role;
+
+      if (role !== "admin") {
+        // not an admin -> redirect
+        location.replace("admin-login.html");
+        return;
+      }
+
+      // verified admin: set quick UI marker
+      try {
+        sessionStorage.setItem(
+          "fm_user",
+          JSON.stringify({
+            email: me?.user?.email || me?.email || "",
+            name: me?.user?.name || "Admin",
+            role: "admin",
+          })
+        );
+      } catch (e) {
+        /* ignore storage errors */
+      }
+
+      // reveal admin UI (some pages rely on this attribute)
+      document.body.setAttribute("data-auth", "ok");
+    } catch (err) {
+      console.warn("Immediate admin gate failed:", err);
+      // Be conservative -> redirect to login
+      try {
+        location.replace("admin-login.html");
+      } catch {}
+    }
+  })();
 
   // Helper to logout and ensure history doesn't allow back to admin page
   async function logoutAndRedirect() {
@@ -239,14 +279,95 @@
       // ignore network errors
       console.warn("logout request failed", err);
     } finally {
-      try { sessionStorage.removeItem("fm_user"); } catch {}
-      try { window.refreshAuthBtn && window.refreshAuthBtn(); } catch {}
-      try { window.updateAdminNavVisibility && window.updateAdminNavVisibility(); } catch {}
+      try {
+        sessionStorage.removeItem("fm_user");
+      } catch {}
+      try {
+        window.refreshAuthBtn && window.refreshAuthBtn();
+      } catch {}
+      try {
+        window.updateAdminNavVisibility && window.updateAdminNavVisibility();
+      } catch {}
       // replace history entry so Back won't return to admin page
       location.replace("index.html");
     }
   }
   window.logoutAndRedirect = logoutAndRedirect;
+
+  // -------------------------
+  // AUTO-LOGOUT: when admin tab/window is closed or page hidden
+  // -------------------------
+  // Only run auto-logout logic on admin pages to avoid logging out regular users.
+  (function enableAutoLogoutOnClose() {
+    try {
+      const isAdminPage =
+        location.pathname.endsWith("/admin.html") ||
+        location.pathname.endsWith("admin.html");
+      if (!isAdminPage) return;
+
+      // best-effort: use sendBeacon (works during unload) to call backend logout endpoint
+      function doBackendLogout() {
+        try {
+          // Use sendBeacon so the request can complete during unload
+          const url = `${API_BASE}/auth/logout`;
+          // sendBeacon expects a Blob, ArrayBuffer, string or null
+          if (navigator.sendBeacon) {
+            navigator.sendBeacon(url, "");
+          } else {
+            // fallback: synchronous XHR (deprecated but works in some browsers during unload)
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", url, false);
+            xhr.withCredentials = true;
+            try {
+              xhr.send(null);
+            } catch (e) {
+              /* ignore */
+            }
+          }
+        } catch (e) {
+          // ignore network errors
+        }
+      }
+
+      // Clear client-side session storage and call backend logout
+      function clearClientAndLogout() {
+        try {
+          sessionStorage.removeItem("fm_user");
+        } catch (e) {}
+        try {
+          window.refreshAuthBtn && window.refreshAuthBtn();
+        } catch (e) {}
+        try {
+          window.updateAdminNavVisibility && window.updateAdminNavVisibility();
+        } catch (e) {}
+        doBackendLogout();
+      }
+
+      // when the page is being unloaded (close / refresh / navigate away)
+      window.addEventListener("beforeunload", function () {
+        clearClientAndLogout();
+        // do NOT call preventDefault — we only want the cleanup to run
+      });
+
+      // visibilitychange handles closing a tab (some browsers fire hidden before unload)
+      document.addEventListener("visibilitychange", function () {
+        if (document.visibilityState === "hidden") {
+          // small delay-safe call
+          clearClientAndLogout();
+        }
+      });
+
+      // pageshow/pagehide for bfcache cases
+      window.addEventListener("pagehide", function (ev) {
+        if (ev.persisted) {
+          // If page is entering bfcache we still want to clear admin on final unload
+          clearClientAndLogout();
+        }
+      });
+    } catch (err) {
+      console.warn("Auto-logout init failed:", err);
+    }
+  })();
 
   // =======================
   // NAVBAR AUTH BUTTON (Sign In / Logout)
@@ -300,6 +421,8 @@
         const modal = document.getElementById("signinModal");
         if (modal) {
           modal.setAttribute("aria-hidden", "false");
+          // lock page scroll while modal is open
+          document.body.classList.add("modal-open");
         }
       }
     });
@@ -751,7 +874,9 @@
               <a href="${s.url}" data-scr="${
                   s.url
                 }" data-idx="${idx}" class="screenshot-link" style="display:inline-block">
-                <img src="${s.url}" alt="screenshot ${idx + 1}" onerror="this.src='https://placehold.co/120x80?text=Shot'" style="width:120px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #eee">
+                <img src="${s.url}" alt="screenshot ${
+                  idx + 1
+                }" onerror="this.src='https://placehold.co/120x80?text=Shot'" style="width:120px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #eee">
               </a>`
               )
               .join("")}
@@ -774,9 +899,15 @@
           : ""
       }</p>
               <div class="meta-actions">
-                <button data-act="heart" data-id="${getId(p)}">❤ ${p.hearts || 0}</button>
-                <button data-act="like" data-id="${getId(p)}">👍 ${p.likes || 0}</button>
-                <button data-act="ok" data-id="${getId(p)}">👌 ${p.oks || 0}</button>
+                <button data-act="heart" data-id="${getId(p)}">❤ ${
+        p.hearts || 0
+      }</button>
+                <button data-act="like" data-id="${getId(p)}">👍 ${
+        p.likes || 0
+      }</button>
+                <button data-act="ok" data-id="${getId(p)}">👌 ${
+        p.oks || 0
+      }</button>
                 <button id="shareBtn">Share</button>
               </div>
             </div>
@@ -813,11 +944,15 @@
                 ? comments
                     .map(
                       (c) =>
-                        `<div class="card" data-comment-id="${c.id}"><strong>${escapeHtml(
+                        `<div class="card" data-comment-id="${
+                          c.id
+                        }"><strong>${escapeHtml(
                           c.user_name || "User"
                         )}</strong><div class="muted" style="font-size:12px;margin:6px 0;">${new Date(
                           c.createdAt
-                        ).toLocaleString()}</div><p>${escapeHtml(c.content)}</p></div>`
+                        ).toLocaleString()}</div><p>${escapeHtml(
+                          c.content
+                        )}</p></div>`
                     )
                     .join("")
                 : "<p>No comments yet.</p>"
@@ -1017,9 +1152,10 @@
       });
     }
 
-    closeBtn?.addEventListener("click", () =>
-      modal.setAttribute("aria-hidden", "true")
-    );
+    closeBtn?.addEventListener("click", () => {
+      modal.setAttribute("aria-hidden", "true");
+      document.body.classList.remove("modal-open");
+    });
 
     // ---- NEW: robust submit handler that waits for cookie -> UI update ----
     form.addEventListener("submit", async function (ev) {
@@ -1047,7 +1183,10 @@
               role,
             })
           );
-          showToast("Registered and signed in as " + (userObj.name || name), "success");
+          showToast(
+            "Registered and signed in as " + (userObj.name || name),
+            "success"
+          );
         } else {
           const loginResp = await Auth.login(email, password);
           userObj = loginResp.user || {};
@@ -1060,12 +1199,17 @@
               role,
             })
           );
-          showToast("Signed in" + (userObj.name ? " as " + userObj.name : ""), "success");
+          showToast(
+            "Signed in" + (userObj.name ? " as " + userObj.name : ""),
+            "success"
+          );
         }
 
         // Close modal & clear fields
         setMode("login");
         modal.setAttribute("aria-hidden", "true");
+        document.body.classList.remove("modal-open");
+
         emailEl.value = "";
         passEl.value = "";
         if (nameEl) nameEl.value = "";
@@ -2090,26 +2234,32 @@
       // always re-sync navbar/admin link visibility when page is shown (handles bfcache)
       await updateAdminNavVisibility();
 
-      // if user is on admin.html and not admin, redirect to index#signin
       const isAdminPage =
         location.pathname.endsWith("/admin.html") ||
         location.pathname.endsWith("admin.html");
 
-      if (isAdminPage) {
-        const me = await Auth.me();
-        const role = me?.user?.role || me?.role || me?.data?.role || me?.data?.user?.role;
-        if (role !== "admin") {
-          // replace so back won't return to admin
-          location.replace("index.html#signin");
-        } else {
-          // ensure admin UI visible
-          document.body.setAttribute("data-auth", "ok");
-        }
+      if (!isAdminPage) return;
+
+      // re-verify with backend (authoritative)
+      const me = await Auth.me();
+      const role =
+        me?.user?.role || me?.role || me?.data?.role || me?.data?.user?.role;
+
+      if (role !== "admin") {
+        // replace so Back won't return to admin page, send to admin login
+        location.replace("admin-login.html");
+      } else {
+        // ensure admin UI visible
+        document.body.setAttribute("data-auth", "ok");
       }
     } catch (err) {
-      // if anything fails, hide admin UI and avoid throwing
+      // conservative fallback: hide admin UI and redirect to login
+      console.warn("pageshow admin re-check failed:", err);
       const adminItem = document.querySelector(".admin-only");
       if (adminItem) adminItem.style.display = "none";
+      try {
+        location.replace("admin-login.html");
+      } catch {}
     }
   });
 })();

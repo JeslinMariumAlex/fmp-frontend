@@ -1,104 +1,146 @@
 <!doctype html>
 <html lang="en">
 <head>
-	<meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width,initial-scale=1" />
-	<title>Privacy Policy - Find My Plugin</title>
-	<link rel="stylesheet" href="assets/css/style.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Privacy Policy - Find My Plugin</title>
+  <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
-	<header class="site-header container">
-		<div class="nav-wrapper">
-			<a href="index.html" class="brand">Find My Plugin</a>
-			
-			<nav>
-				<ul class="nav-list" id="mainNav">
-					<li class="nav-item"><a href="index.html" class="nav-link">Home</a></li>
-					<li class="nav-item"><a href="admin.html" class="nav-link" style="display:none">Admin</a></li>
-					<li class="nav-item"><a href="contact.html" class="nav-link">Contact</a></li>
-				</ul>
-			</nav>
-			<button class="mobile-menu-btn" id="mobileMenuBtn">
-				<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-					<path d="M3 12h18M3 6h18M3 18h18"/>
-				</svg>
-			</button>
-		</div>
-	</header>
+  <header class="site-header">
+    <div class="container nav-wrapper">
+      <a href="index.html" class="brand" style="font-weight:700; font-size:18px;">Find My Plugin</a>
 
-	<main class="container">
-		<article class="policy">
-			<h1>Privacy Policy</h1>
-			<p>This demo site stores data locally in your browser (localStorage). No data is sent to external servers in this demo.</p>
-			<p>Use this template as starting point and replace storage with your server-side APIs for production.</p>
-		</article>
-	</main>
+      <nav>
+        <ul class="nav-list" id="mainNav">
+          <li class="nav-item"><a href="index.html" class="nav-link">Home</a></li>
+          <li class="nav-item admin-only"><a href="admin.html" class="nav-link">Admin</a></li>
+          <li class="nav-item"><a href="contact.html" class="nav-link">Contact</a></li>
+        </ul>
+      </nav>
 
-	<footer class="site-footer">
-		<div class="container">
-			<div class="footer-grid">
-				<div class="footer-section">
-					<h4>Products</h4>
-					<ul class="footer-links">
-						<li><a href="#">Marketplace</a></li>
-						<li><a href="#">Templates</a></li>
-						<li><a href="#">Guides</a></li>
-					</ul>
-				</div>
-				<div class="footer-section">
-					<h4>Resources</h4>
-					<ul class="footer-links">
-						<li><a href="#">Documentation</a></li>
-						<li><a href="#">Blog</a></li>
-						<li><a href="#">Community</a></li>
-					</ul>
-				</div>
-				<div class="footer-section">
-					<h4>Company</h4>
-					<ul class="footer-links">
-						<li><a href="#">About</a></li>
-						<li><a href="#">Careers</a></li>
-						<li><a href="#">Contact</a></li>
-					</ul>
-				</div>
-				<div class="footer-section">
-					<h4>Social</h4>
-					<ul class="footer-links">
-						<li><a href="#">Twitter</a></li>
-						<li><a href="#">GitHub</a></li>
-						<li><a href="#">LinkedIn</a></li>
-					</ul>
-				</div>
-			</div>
-			<div class="footer-bottom">
-				<div>© Find My Plugin • <a href="privacy.html">Privacy policy</a></div>
-				<div class="social-links">
-					<a href="#" target="_blank">Twitter</a>
-					<a href="#" target="_blank">GitHub</a>
-					<a href="#" target="_blank">LinkedIn</a>
-				</div>
-			</div>
-		</div>
-	</footer>
-	<script>
-	document.getElementById('mobileMenuBtn').addEventListener('click', function() {
-	    document.getElementById('mainNav').classList.toggle('active');
-	});
-	document.querySelectorAll('.nav-item').forEach(function(item) {
-	    var link = item.querySelector('.nav-link');
-	    var megamenu = item.querySelector('.megamenu');
-	    if (link && megamenu) {
-	        link.addEventListener('click', function(e) {
-	            if (window.innerWidth <= 900) {
-	                e.preventDefault();
-	                document.querySelectorAll('.nav-item.open').forEach(function(openItem) {
-	                    if (openItem !== item) openItem.classList.remove('open');
-	                });
-	                item.classList.toggle('open');
-	            }
-	        });
-	    }
-	});
-	</script>
+      <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open menu">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 12h18M3 6h18M3 18h18"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="hero hero-banner" style="margin-top:28px;">
+      <div>
+        <h1>Privacy Policy</h1>
+        <p class="lead">This Privacy Policy explains how <strong>Find My Plugin</strong> collects, uses, and protects your information when you use our service. If something isn't clear, email us at <a href="mailto:hello@findmyplugin.example">hello@findmyplugin.example</a>.</p>
+      </div>
+    </section>
+
+    <article class="policy card" style="margin-top:20px;padding:22px;">
+      <h2>What we collect</h2>
+      <p>We collect only the information required to operate the site and provide its features:</p>
+      <ul>
+        <li><strong>Account data:</strong> name, email, and password (passwords are stored hashed).</li>
+        <li><strong>Authentication cookie:</strong> a secure HTTP-only cookie used to authenticate requests to the backend.</li>
+        <li><strong>Contact & request forms:</strong> name, email, phone (optional), and message content submitted via forms.</li>
+        <li><strong>Local browser data:</strong> non-sensitive demo data (e.g. plugin requests) may be stored in <code>localStorage</code> when the backend is unavailable.</li>
+      </ul>
+
+      <h2>How we use data</h2>
+      <p>We use collected data to:</p>
+      <ul>
+        <li>Authenticate you and manage your session.</li>
+        <li>Respond to contact messages and plugin requests.</li>
+        <li>Provide and improve site features and functionality.</li>
+      </ul>
+
+      <h2>Cookies & session behavior</h2>
+      <p>We use an authentication cookie (HTTP-only) to identify you on the server. By default the server issues a session cookie (no <code>Expires</code>/<code>Max-Age</code>) so the browser removes it when you close it. If the cookie is configured with an expiry on the server it may persist across restarts — see your account logout options to end a session.</p>
+
+      <h2>Security & retention</h2>
+      <p>Passwords are stored hashed; server endpoints validate authentication on every request. We retain contact messages and account data as required to provide the service. If you want your data deleted, contact us at <a href="mailto:hello@findmyplugin.example">hello@findmyplugin.example</a>.</p>
+
+      <h2>Sharing & third parties</h2>
+      <p>We do not sell your personal data. We may share information with third-party providers for hosting, email delivery, or analytics under contractual obligations to protect your data.</p>
+
+      <h2>Your choices</h2>
+      <ul>
+        <li><strong>Sign out:</strong> click Logout to end your session. Closing the browser will also remove session cookies when the server issues session-only cookies.</li>
+        <li><strong>Delete data:</strong> email us to request deletion of your account or data.</li>
+      </ul>
+
+      <h2>Contact</h2>
+      <p>Questions about privacy? Email: <a href="mailto:hello@findmyplugin.example">hello@findmyplugin.example</a>.</p>
+
+      <p class="muted" style="margin-top:12px">Last updated: 23 November 2025</p>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-section">
+          <h4>Products</h4>
+          <ul class="footer-links">
+            <li><a href="#">Marketplace</a></li>
+            <li><a href="#">Templates</a></li>
+            <li><a href="#">Guides</a></li>
+          </ul>
+        </div>
+        <div class="footer-section">
+          <h4>Resources</h4>
+          <ul class="footer-links">
+            <li><a href="#">Documentation</a></li>
+            <li><a href="#">Blog</a></li>
+            <li><a href="#">Community</a></li>
+          </ul>
+        </div>
+        <div class="footer-section">
+          <h4>Company</h4>
+          <ul class="footer-links">
+            <li><a href="#">About</a></li>
+            <li><a href="#">Careers</a></li>
+            <li><a href="#">Contact</a></li>
+          </ul>
+        </div>
+        <div class="footer-section">
+          <h4>Social</h4>
+          <ul class="footer-links">
+            <li><a href="#">Twitter</a></li>
+            <li><a href="#">GitHub</a></li>
+            <li><a href="#">LinkedIn</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom" style="margin-top:22px">
+        <div>© Find My Plugin • <a href="privacy.html">Privacy policy</a></div>
+        <div class="social-links">
+          <a href="#" target="_blank">Twitter</a>
+          <a href="#" target="_blank">GitHub</a>
+          <a href="#" target="_blank">LinkedIn</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Mobile nav toggle
+    document.getElementById('mobileMenuBtn').addEventListener('click', function() {
+      document.getElementById('mainNav').classList.toggle('active');
+    });
+
+    // Simple admin show/hide: existing app sets sessionStorage fm_user, but keep defensive here
+    (function updateAdminLink() {
+      const admin = document.querySelector('.admin-only');
+      try {
+        const raw = sessionStorage.getItem('fm_user');
+        if (raw) {
+          const obj = JSON.parse(raw);
+          if (obj && obj.role === 'admin') admin.style.display = 'inline-block';
+        }
+      } catch (e) {}
+    })();
+  </script>
 </body>
 </html>
+

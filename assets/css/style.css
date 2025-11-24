@@ -1660,3 +1660,25 @@ article,
   display: none;
 }
 
+/* === Modal stacking / scroll lock fixes === */
+.modal {
+  z-index: 6000; /* above header(3000) and megamenu(4000) */
+}
+
+.modal-panel {
+  z-index: 6001; /* panel above overlay */
+}
+
+/* When modal is open, lock page scroll to avoid background interaction */
+body.modal-open {
+  overflow: hidden;
+  touch-action: none;
+}
+
+/* safety: ensure header stays below modals */
+.site-header,
+.nav-item .megamenu {
+  z-index: 3000;
+}
+
+
