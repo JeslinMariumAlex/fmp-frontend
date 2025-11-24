@@ -255,7 +255,7 @@
 
           // replace history entry so Back won't return to admin page
           // use replace() to avoid adding a new history entry
-          location.replace("index.html");
+          location.replace("admin-login.html");
         }
       });
 
@@ -271,14 +271,14 @@
 
         if (!r.ok) {
           if (r.status === 401 || r.status === 403) {
-            window.location.replace("index.html");
+            window.location.replace("admin-login.html");
           }
           return;
         }
 
         const me = await r.json().catch(() => ({}));
         if (me.role !== "admin") {
-          window.location.replace("index.html");
+          window.location.replace("admin-login.html");
           return;
         }
 
