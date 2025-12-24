@@ -47,7 +47,7 @@
 										<!-- Add more categories -->
 									</ul>
 									<!-- Add more sections -->
-							</div>
+								</div>
 					</li>
 					<li class="nav-item">
 						<a href="#" class="nav-link">Resources <svg width="12" height="12" viewBox="0 0 16 16">
@@ -83,15 +83,6 @@
 		<!-- Hero section with image background -->
 		<section class="hero hero-banner"
 			style="background: url('assets/images/banner.jpg') center/cover no-repeat; border-radius: 18px; min-height: 340px; display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 32px; position: relative;">
-			<div>
-				<!-- <h1 style="font-size:2.4rem; font-weight:700; margin-bottom:18px; color:#111;">Discover plugins, extensions and integrations</h1>
-				<p style="font-size:1.15rem; color:#444; margin-bottom:28px;">Pellentesque egestas, neque sit amet convallis pulvinar, justo nulla eleifend augue, ac auctor orci leo non est. Aliquam eu nunc. Quisque ut nisi. 
-				</p> -->
-				<!-- <div style="display:flex; gap:18px; justify-content:center;">
-					<a href="#" class="btn" style="background:#111; color:#fff; min-width:160px;">&#9650; Start Deploying</a>
-					<a href="#" class="btn ghost" style="background:#fff; color:#222; min-width:160px;">Get a Demo</a>
-				</div> -->
-			</div>
 		</section>
 
 		<section class="hero">
@@ -228,6 +219,13 @@
 					Register
 				</button>
 			</form>
+
+			<!-- Google Sign In -->
+			<div style="margin-top: 16px; text-align: center;">
+				<div id="googleSignIn"></div>
+			</div>
+
+
 		</div>
 	</div>
 
@@ -315,6 +313,7 @@
 		});
 	</script>
 
+	<script src="https://accounts.google.com/gsi/client" async defer></script>
 
 </body>
 

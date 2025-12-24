@@ -2263,3 +2263,82 @@
     }
   });
 })();
+
+// =======================
+// GOOGLE SIGN-IN (ADD ONLY – DOES NOT AFFECT EXISTING AUTH)
+// =======================
+// =======================
+// GOOGLE SIGN IN (Option 1 - Google button)
+// =======================
+window.addEventListener("load", () => {
+  if (!window.google) {
+    console.error("Google script not loaded");
+    return;
+  }
+
+  const googleDiv = document.getElementById("googleSignIn");
+  if (!googleDiv) {
+    console.error("#googleSignIn not found");
+    return;
+  }
+
+  google.accounts.id.initialize({
+    client_id: "79276593114-kncb9qral7p3fmmmh9cufp2j640n543g.apps.googleusercontent.com",
+    callback: handleGoogleSignIn,
+  });
+
+  google.accounts.id.renderButton(googleDiv, {
+    theme: "filled_black",
+    size: "large",
+    shape: "pill",
+    width: 320,
+  });
+});
+
+
+async function handleGoogleSignIn(response) {
+  try {
+    console.log("Google token:", response.credential);
+
+    // SEND TOKEN TO BACKEND
+    const res = await fetch(
+      (["localhost", "127.0.0.1"].includes(location.hostname)
+        ? `http://${location.hostname}:5000/api/auth/google`
+        : "https://fmp-backend-wrdc.onrender.com/api/auth/google"),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ token: response.credential })
+      }
+    );
+
+    if (!res.ok) throw new Error("Google login failed");
+
+    const data = await res.json();
+
+    // SAVE SESSION (same as normal login)
+    sessionStorage.setItem(
+      "fm_user",
+      JSON.stringify({
+        name: data.user.name,
+        email: data.user.email,
+        role: data.user.role || "user"
+      })
+    );
+
+    // CLOSE MODAL
+    document.getElementById("signinModal")
+      ?.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("modal-open");
+
+    // UPDATE NAV
+    window.refreshAuthBtn && window.refreshAuthBtn();
+    window.updateAdminNavVisibility && window.updateAdminNavVisibility();
+
+    window.showToast("Signed in with Google", "success");
+  } catch (err) {
+    window.showToast(err.message || "Google sign-in failed", "error");
+  }
+}
+

@@ -1681,4 +1681,8 @@ body.modal-open {
   z-index: 3000;
 }
 
-
+#googleSignIn {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+}
