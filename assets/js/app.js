@@ -2265,9 +2265,6 @@
 })();
 
 // =======================
-// GOOGLE SIGN-IN (ADD ONLY – DOES NOT AFFECT EXISTING AUTH)
-// =======================
-// =======================
 // GOOGLE SIGN IN (Option 1 - Google button)
 // =======================
 window.addEventListener("load", () => {
